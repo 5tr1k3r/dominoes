@@ -75,11 +75,30 @@ class Board:
         # filtering out paths that are not suitable for the tile
         paths = [path for path in self.paths if tile.x == path.value or tile.y == path.value]
 
+        # get the amount of unique values we can connect with and allow player
+        # to choose which way to connect a tile if there are two options available
+        unique_values_count = len(set(x.value for x in paths))
+        if unique_values_count == 2:
+            valid_input = False
+            chosen_value = None
+            while not valid_input:
+                try:
+                    chosen_value = int(input('What value do you want to connect with? '))
+                except ValueError:
+                    print('invalid input')
+                    continue
+
+                if chosen_value not in [tile.x, tile.y]:
+                    print(f'Tile {tile} does not have value {chosen_value}')
+                else:
+                    valid_input = True
+
+            paths = [path for path in self.paths if chosen_value == path.value]
+
         # sorting paths by depth so it prioritizes lowest depth first
         paths.sort(key=lambda x: x.depth)
 
         # using the first suitable path
-        # todo handle cases when tile has two different values that are both suitable
         chosen_path = self.paths[paths[0].index]
         if tile.x == chosen_path.value:
             chosen_path.value = tile.y
