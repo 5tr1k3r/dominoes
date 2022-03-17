@@ -108,8 +108,10 @@ class Board:
 
 
 class Player:
-    def __init__(self, index: int):
-        self.index = index
+    def __init__(self, name: str, is_bot: bool = False):
+        self.name = name
+        self.is_bot = is_bot
+
         self.hand = []
         self.is_move_available = True
         self.score = 0
@@ -139,14 +141,15 @@ class Player:
 
 
 class Game:
-    def __init__(self):
-        self.players = [Player(i) for i in range(cfg.player_count)]
+    def __init__(self, players: List[Player]):
+        self.players = players
+        self.player_count = len(self.players)
         self.stock = None
         self.board = None
 
-        if cfg.player_count < 2:
+        if self.player_count < 2:
             raise RuntimeError('not enough players, need at least 2')
-        if cfg.player_count > 4:
+        if self.player_count > 4:
             raise RuntimeError('too many players, can only have 2-4 players')
 
     def run(self):
@@ -180,19 +183,19 @@ class Game:
     def make_move(self, player: Player):
         suitable_tiles = self.get_suitable_tiles(player)
         while not self.get_suitable_tiles(player):
-            print(f'Player {player.index} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
+            print(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
 
             if not self.stock:
-                print(f'Player {player.index} has no suitable tiles, but the stock is empty. Aborting the move.')
+                print(f'{player.name} has no suitable tiles, but the stock is empty. Aborting the move.')
                 player.is_move_available = False
                 return
 
             new_tile_from_stock = self.stock.pop()
             player.hand.append(new_tile_from_stock)
-            print(f'Player {player.index} has no suitable tiles, taking one tile from stock... {new_tile_from_stock}')
+            print(f'{player.name} has no suitable tiles, taking one tile from stock... {new_tile_from_stock}')
             suitable_tiles = self.get_suitable_tiles(player)
 
-        print(f'Player {player.index} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
+        print(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
 
         player.is_move_available = True
         valid_move = False
@@ -218,7 +221,7 @@ class Game:
 
     # Shuffle the entire stock before drawing tiles from it
     def draw_tiles_from_stock(self):
-        if cfg.player_count == 2:
+        if self.player_count == 2:
             tiles_to_draw = cfg.tiles_to_draw_if_two_players
         else:
             tiles_to_draw = cfg.tiles_to_draw_if_more_than_two_players
@@ -236,7 +239,7 @@ class Game:
         for double in [Tile(i, i) for i in range(1, cfg.highest_tile_value + 1)]:
             for i, player in enumerate(self.players):
                 if double in player.hand:
-                    print(f'player {i} has {double}, they start')
+                    print(f'{player.name} has {double}, they start')
                     self.board.add_starting_tile(player.take_tile_out_of_hand(double))
 
                     # move the player to the last position because they already made the first move
@@ -246,7 +249,7 @@ class Game:
         zero_double = Tile(0, 0)
         for i, player in enumerate(self.players):
             if zero_double in player.hand:
-                print(f'player {i} has {zero_double}, they start')
+                print(f'{player.name} has {zero_double}, they start')
                 self.board.add_starting_tile(player.take_tile_out_of_hand(zero_double))
                 self.players.append(self.players.pop(i))
                 return
@@ -259,8 +262,9 @@ class Game:
                 highest_rank_tile = players_highest_rank_tile
                 hrt_player_index = i
 
-        print(f'player {hrt_player_index} has {highest_rank_tile}, they start')
-        self.board.add_starting_tile(self.players[hrt_player_index].take_tile_out_of_hand(highest_rank_tile))
+        hrt_player = self.players[hrt_player_index]
+        print(f'{hrt_player.name} has {highest_rank_tile}, they start')
+        self.board.add_starting_tile(hrt_player.take_tile_out_of_hand(highest_rank_tile))
         self.players.append(self.players.pop(hrt_player_index))
 
     def show_players_hands(self):
@@ -286,7 +290,7 @@ class Game:
     def write_down_scores(self):
         print('-' * cfg.separator_line_length)
 
-        self.players.sort(key=lambda x: x.index)
+        self.players.sort(key=lambda x: x.name)
         for player in self.players:
             delta = player.get_total_weight()
 
@@ -296,12 +300,12 @@ class Game:
 
             player.score += delta
             delta_line = f' (+{delta})' if delta else ''
-            print(f"Player {player.index}: {player.score} points{delta_line}")
+            print(f"{player.name}: {player.score} points{delta_line}")
 
     def is_someone_finished(self) -> bool:
         for player in self.players:
             if player.is_empty_hand():
-                print(f'Player {player.index} has no more tiles!')
+                print(f'{player.name} has no more tiles!')
                 return True
 
         return False
@@ -310,7 +314,7 @@ class Game:
         is_goat_detected = False
         for player in self.players:
             if player.is_a_goat():
-                print(f'Player {player.index} has {player.score} points and is a goat!')
+                print(f'{player.name} has {player.score} points and is a goat!')
                 is_goat_detected = True
 
         return is_goat_detected
@@ -322,5 +326,5 @@ class Game:
 
 
 if __name__ == '__main__':
-    game = Game()
+    game = Game([Player('me'), Player('AI 1', is_bot=True)])
     game.run()
