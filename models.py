@@ -4,6 +4,8 @@ from itertools import combinations_with_replacement, cycle
 from typing import Optional, List
 
 import config as cfg
+from config import logger
+from utils import timeit
 
 
 class Tile:
@@ -61,9 +63,8 @@ class Player:
         self.score = 0
 
     def show_hand(self):
-        for tile in self.hand[:-1]:
-            print(tile, end=', ')
-        print(self.hand[-1])
+        hand_line = ', '.join(str(tile) for tile in self.hand)
+        logger.debug(hand_line)
 
     def get_total_weight(self) -> int:
         return sum(x.weight for x in self.hand)
@@ -91,13 +92,13 @@ class Player:
             try:
                 move = Tile(*map(int, input().split()))
             except (ValueError, TypeError):
-                print('invalid move')
+                logger.info('invalid move')
                 continue
 
             if move not in self.hand:
-                print(f"there is no {move} in the player's hand")
+                logger.info(f"there is no {move} in the player's hand")
             elif move not in suitable_tiles:
-                print(f'{move} is not a suitable move')
+                logger.info(f'{move} is not a suitable move')
             else:
                 valid_move = True
 
@@ -128,8 +129,8 @@ class Board:
             self.paths.append(Path(index=1, value=tile.y, depth=1))
 
     def show(self):
-        print(f'Tiles: {self.tiles}')
-        print(f'Open paths: {self.paths}')
+        logger.debug(f'Tiles: {self.tiles}')
+        logger.debug(f'Open paths: {self.paths}')
 
     def process_new_tile(self, tile: Tile, player: Player):
         # we already know that the tile is suitable for the board
@@ -151,11 +152,11 @@ class Board:
                     try:
                         chosen_value = int(input('What value do you want to connect with? '))
                     except ValueError:
-                        print('invalid input')
+                        logger.info('invalid input')
                         continue
 
                     if chosen_value not in [tile.x, tile.y]:
-                        print(f'Tile {tile} does not have value {chosen_value}')
+                        logger.info(f'Tile {tile} does not have value {chosen_value}')
                     else:
                         valid_input = True
 
@@ -191,7 +192,7 @@ class Game:
             self.start_round(round_number)
 
             for player in cycle(self.players):
-                print('-' * cfg.separator_line_length)
+                logger.debug('-' * cfg.separator_line_length)
                 if self.is_tie() or self.is_someone_finished():
                     self.write_down_scores()
                     break
@@ -208,7 +209,7 @@ class Game:
         self.board = Board()
 
         round_line = f' ROUND {n} '.center(cfg.separator_line_length, '=')
-        print(round_line)
+        logger.debug(round_line)
 
         self.refresh_players()
         self.draw_tiles_from_stock()
@@ -218,24 +219,24 @@ class Game:
     def make_move(self, player: Player):
         suitable_tiles = self.get_suitable_tiles(player)
         while not self.get_suitable_tiles(player):
-            print(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
+            logger.debug(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
 
             if not self.stock:
-                print(f'{player.name} has no suitable tiles, but the stock is empty. Aborting the move.')
+                logger.debug(f'{player.name} has no suitable tiles, but the stock is empty. Aborting the move.')
                 player.is_move_available = False
                 return
 
             new_tile_from_stock = self.stock.pop()
             player.hand.append(new_tile_from_stock)
-            print(f'{player.name} has no suitable tiles, taking one tile from stock... {new_tile_from_stock}')
+            logger.debug(f'{player.name} has no suitable tiles, taking one tile from stock... {new_tile_from_stock}')
             suitable_tiles = self.get_suitable_tiles(player)
 
-        print(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
+        logger.debug(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
 
         player.is_move_available = True
         if player.is_bot:
             move = player.do_bot_move(suitable_tiles)
-            print(move)
+            logger.debug(move)
         else:
             move = player.do_human_move(suitable_tiles)
 
@@ -262,7 +263,7 @@ class Game:
         for double in [Tile(i, i) for i in range(1, cfg.highest_tile_value + 1)]:
             for i, player in enumerate(self.players):
                 if double in player.hand:
-                    print(f'{player.name} has {double}, they start')
+                    logger.debug(f'{player.name} has {double}, they start')
                     self.board.add_starting_tile(player.take_tile_out_of_hand(double))
 
                     # move the player to the last position because they already made the first move
@@ -272,7 +273,7 @@ class Game:
         zero_double = Tile(0, 0)
         for i, player in enumerate(self.players):
             if zero_double in player.hand:
-                print(f'{player.name} has {zero_double}, they start')
+                logger.debug(f'{player.name} has {zero_double}, they start')
                 self.board.add_starting_tile(player.take_tile_out_of_hand(zero_double))
                 self.players.append(self.players.pop(i))
                 return
@@ -286,7 +287,7 @@ class Game:
                 hrt_player_index = i
 
         hrt_player = self.players[hrt_player_index]
-        print(f'{hrt_player.name} has {highest_rank_tile}, they start')
+        logger.debug(f'{hrt_player.name} has {highest_rank_tile}, they start')
         self.board.add_starting_tile(hrt_player.take_tile_out_of_hand(highest_rank_tile))
         self.players.append(self.players.pop(hrt_player_index))
 
@@ -306,12 +307,12 @@ class Game:
     def is_tie(self) -> bool:
         result = all(not player.is_move_available for player in self.players)
         if result:
-            print('Tie! Рыба!')
+            logger.debug('Tie! Рыба!')
 
         return result
 
     def write_down_scores(self):
-        print('-' * cfg.separator_line_length)
+        logger.debug('-' * cfg.separator_line_length)
 
         self.players.sort(key=lambda x: x.name)
         for player in self.players:
@@ -323,12 +324,12 @@ class Game:
 
             player.score += delta
             delta_line = f' (+{delta})' if delta else ''
-            print(f"{player.name}: {player.score} points{delta_line}")
+            logger.debug(f"{player.name}: {player.score} points{delta_line}")
 
     def is_someone_finished(self) -> bool:
         for player in self.players:
             if player.is_empty_hand():
-                print(f'{player.name} has no more tiles!')
+                logger.debug(f'{player.name} has no more tiles!')
                 return True
 
         return False
@@ -337,7 +338,7 @@ class Game:
         is_goat_detected = False
         for player in self.players:
             if player.is_a_goat():
-                print(f'{player.name} has {player.score} points and is a goat!')
+                logger.debug(f'{player.name} has {player.score} points and is a goat!')
                 is_goat_detected = True
 
         return is_goat_detected
@@ -351,11 +352,15 @@ class Game:
         return [player.name for player in self.players if player.is_a_goat()]
 
 
+@timeit
 def run_bot_comparison(n: int):
+    # todo investigate why goats are not uniformly distributed for games with 2+ players
     resulting_goats = {}
     for _ in range(n):
         game = Game([Player('AI easy', is_bot=True, bot_difficulty=0),
-                     Player('AI normal', is_bot=True, bot_difficulty=1)])
+                     Player('AI easy 2', is_bot=True, bot_difficulty=0),
+                     Player('AI easy 3', is_bot=True, bot_difficulty=0),
+                     Player('AI easy 4', is_bot=True, bot_difficulty=0)])
         goats = game.run()
         for goat in goats:
             if goat in resulting_goats:
@@ -363,8 +368,11 @@ def run_bot_comparison(n: int):
             else:
                 resulting_goats[goat] = 1
 
-    print(resulting_goats)
+    total_goat_count = sum(x for x in resulting_goats.values())
+    print('How many times players were goats (the lower the better)')
+    for k, v in sorted(resulting_goats.items(), key=lambda x: x[0]):
+        print(f'{k}: {v} ({(v / total_goat_count):.1%})')
 
 
 if __name__ == '__main__':
-    run_bot_comparison(100)
+    run_bot_comparison(1000)

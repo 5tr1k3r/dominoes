@@ -1,3 +1,8 @@
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logger = logging.getLogger()
+
 highest_tile_value = 6
 tiles_to_draw_if_two_players = 7
 tiles_to_draw_if_more_than_two_players = 5
