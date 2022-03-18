@@ -1,6 +1,6 @@
+import random
 from dataclasses import dataclass, field
 from itertools import combinations_with_replacement, cycle
-from random import shuffle
 from typing import Optional, List
 
 import config as cfg
@@ -50,63 +50,6 @@ class Path:
     depth: int
 
 
-class Board:
-    def __init__(self):
-        self.tiles = []
-        self.paths = []
-
-    def add_starting_tile(self, tile: Tile):
-        self.tiles.append(tile)
-        if tile.is_double():
-            for i in range(4):
-                self.paths.append(Path(index=i, value=tile.x, depth=1))
-        else:
-            self.paths.append(Path(index=0, value=tile.x, depth=1))
-            self.paths.append(Path(index=1, value=tile.y, depth=1))
-
-    def show(self):
-        print(f'Tiles: {self.tiles}')
-        print(f'Open paths: {self.paths}')
-
-    def process_new_tile(self, tile: Tile):
-        # we already know that the tile is suitable for the board
-        self.tiles.append(tile)
-
-        # filtering out paths that are not suitable for the tile
-        paths = [path for path in self.paths if tile.x == path.value or tile.y == path.value]
-
-        # get the amount of unique values we can connect with and allow player
-        # to choose which way to connect a tile if there are two options available
-        unique_values_count = len(set(x.value for x in paths))
-        if unique_values_count == 2:
-            valid_input = False
-            chosen_value = None
-            while not valid_input:
-                try:
-                    chosen_value = int(input('What value do you want to connect with? '))
-                except ValueError:
-                    print('invalid input')
-                    continue
-
-                if chosen_value not in [tile.x, tile.y]:
-                    print(f'Tile {tile} does not have value {chosen_value}')
-                else:
-                    valid_input = True
-
-            paths = [path for path in self.paths if chosen_value == path.value]
-
-        # sorting paths by depth so it prioritizes lowest depth first
-        paths.sort(key=lambda x: x.depth)
-
-        # using the first suitable path
-        chosen_path = self.paths[paths[0].index]
-        if tile.x == chosen_path.value:
-            chosen_path.value = tile.y
-        else:
-            chosen_path.value = tile.x
-        chosen_path.depth += 1
-
-
 class Player:
     def __init__(self, name: str, is_bot: bool = False):
         self.name = name
@@ -138,6 +81,66 @@ class Player:
 
     def is_a_goat(self) -> bool:
         return self.score >= 101
+
+
+class Board:
+    def __init__(self):
+        self.tiles = []
+        self.paths = []
+
+    def add_starting_tile(self, tile: Tile):
+        self.tiles.append(tile)
+        if tile.is_double():
+            for i in range(4):
+                self.paths.append(Path(index=i, value=tile.x, depth=1))
+        else:
+            self.paths.append(Path(index=0, value=tile.x, depth=1))
+            self.paths.append(Path(index=1, value=tile.y, depth=1))
+
+    def show(self):
+        print(f'Tiles: {self.tiles}')
+        print(f'Open paths: {self.paths}')
+
+    def process_new_tile(self, tile: Tile, player: Player):
+        # we already know that the tile is suitable for the board
+        self.tiles.append(tile)
+
+        # filtering out paths that are not suitable for the tile
+        paths = [path for path in self.paths if tile.x == path.value or tile.y == path.value]
+
+        # get the amount of unique values we can connect with and allow player
+        # to choose which way to connect a tile if there are two options available
+        unique_values_count = len(set(x.value for x in paths))
+        if unique_values_count == 2:
+            if player.is_bot:
+                chosen_value = random.choice([tile.x, tile.y])
+            else:
+                valid_input = False
+                chosen_value = None
+                while not valid_input:
+                    try:
+                        chosen_value = int(input('What value do you want to connect with? '))
+                    except ValueError:
+                        print('invalid input')
+                        continue
+
+                    if chosen_value not in [tile.x, tile.y]:
+                        print(f'Tile {tile} does not have value {chosen_value}')
+                    else:
+                        valid_input = True
+
+            paths = [path for path in self.paths if chosen_value == path.value]
+
+        # sorting paths by depth so it prioritizes lowest depth first
+        paths.sort(key=lambda x: x.depth)
+
+        # using the first suitable path
+        chosen_path = self.paths[paths[0].index]
+        if tile.x == chosen_path.value:
+            chosen_path.value = tile.y
+        else:
+            chosen_path.value = tile.x
+        chosen_path.depth += 1
 
 
 class Game:
@@ -198,26 +201,14 @@ class Game:
         print(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
 
         player.is_move_available = True
-        valid_move = False
-        move = None
+        if player.is_bot:
+            move = self.do_bot_move(suitable_tiles)
+            print(move)
+        else:
+            move = self.do_human_move(player, suitable_tiles)
 
-        # todo decide if need to allow the blocking move for a double
-        while not valid_move:
-            try:
-                move = Tile(*map(int, input().split()))
-            except (ValueError, TypeError):
-                print('invalid move')
-                continue
-
-            if move not in player.hand:
-                print(f"there is no {move} in the player's hand")
-            elif move not in suitable_tiles:
-                print(f'{move} is not a suitable move')
-            else:
-                valid_move = True
-
-        move = player.take_tile_out_of_hand(move)
-        self.board.process_new_tile(move)
+        tile = player.take_tile_out_of_hand(move)
+        self.board.process_new_tile(tile, player)
 
     # Shuffle the entire stock before drawing tiles from it
     def draw_tiles_from_stock(self):
@@ -226,7 +217,7 @@ class Game:
         else:
             tiles_to_draw = cfg.tiles_to_draw_if_more_than_two_players
 
-        shuffle(self.stock)
+        random.shuffle(self.stock)
         for player in self.players:
             for _ in range(tiles_to_draw):
                 player.hand.append(self.stock.pop())
@@ -323,6 +314,31 @@ class Game:
         for player in self.players:
             player.hand = []
             player.is_move_available = True
+
+    @staticmethod
+    def do_human_move(player: Player, suitable_tiles: List[Tile]) -> Tile:
+        valid_move = False
+        move = None
+        # todo decide if need to allow the blocking move for a double
+        while not valid_move:
+            try:
+                move = Tile(*map(int, input().split()))
+            except (ValueError, TypeError):
+                print('invalid move')
+                continue
+
+            if move not in player.hand:
+                print(f"there is no {move} in the player's hand")
+            elif move not in suitable_tiles:
+                print(f'{move} is not a suitable move')
+            else:
+                valid_move = True
+
+        return move
+
+    @staticmethod
+    def do_bot_move(suitable_tiles: List[Tile]) -> Tile:
+        return random.choice(suitable_tiles)
 
 
 if __name__ == '__main__':
