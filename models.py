@@ -113,6 +113,12 @@ class Player:
         if self.bot_difficulty == 1:
             return sorted(suitable_tiles, key=lambda x: x.weight, reverse=True)[0]
 
+    def __str__(self):
+        return f'{self.name}'
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class Board:
     def __init__(self):
@@ -176,6 +182,7 @@ class Board:
 
 class Game:
     def __init__(self, players: List[Player]):
+        random.shuffle(players)
         self.players = players
         self.player_count = len(self.players)
         self.stock = None
@@ -314,7 +321,6 @@ class Game:
     def write_down_scores(self):
         logger.debug('-' * cfg.separator_line_length)
 
-        self.players.sort(key=lambda x: x.name)
         for player in self.players:
             delta = player.get_total_weight()
 
@@ -354,7 +360,6 @@ class Game:
 
 @timeit
 def run_bot_comparison(n: int):
-    # todo investigate why goats are not uniformly distributed for games with 2+ players
     resulting_goats = {}
     for _ in range(n):
         game = Game([Player('AI easy', is_bot=True, bot_difficulty=0),
