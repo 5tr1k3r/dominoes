@@ -51,9 +51,10 @@ class Path:
 
 
 class Player:
-    def __init__(self, name: str, is_bot: bool = False):
+    def __init__(self, name: str, is_bot: bool = False, bot_difficulty: int = 0):
         self.name = name
         self.is_bot = is_bot
+        self.bot_difficulty = bot_difficulty
 
         self.hand = []
         self.is_move_available = True
@@ -81,6 +82,35 @@ class Player:
 
     def is_a_goat(self) -> bool:
         return self.score >= 101
+
+    def do_human_move(self, suitable_tiles: List[Tile]) -> Tile:
+        valid_move = False
+        move = None
+        # todo decide if need to allow the blocking move for a double
+        while not valid_move:
+            try:
+                move = Tile(*map(int, input().split()))
+            except (ValueError, TypeError):
+                print('invalid move')
+                continue
+
+            if move not in self.hand:
+                print(f"there is no {move} in the player's hand")
+            elif move not in suitable_tiles:
+                print(f'{move} is not a suitable move')
+            else:
+                valid_move = True
+
+        return move
+
+    def do_bot_move(self, suitable_tiles: List[Tile]) -> Tile:
+        # easy difficulty: pick a random suitable tile
+        if self.bot_difficulty == 0:
+            return random.choice(suitable_tiles)
+
+        # normal difficulty: pick a suitable tile with highest weight
+        if self.bot_difficulty == 1:
+            return sorted(suitable_tiles, key=lambda x: x.weight, reverse=True)[0]
 
 
 class Board:
@@ -171,6 +201,8 @@ class Game:
 
             round_number += 1
 
+        return self.get_goats()
+
     def start_round(self, n: int):
         self.stock = [Tile(x, y) for x, y in combinations_with_replacement(range(cfg.highest_tile_value + 1), 2)]
         self.board = Board()
@@ -202,10 +234,10 @@ class Game:
 
         player.is_move_available = True
         if player.is_bot:
-            move = self.do_bot_move(suitable_tiles)
+            move = player.do_bot_move(suitable_tiles)
             print(move)
         else:
-            move = self.do_human_move(player, suitable_tiles)
+            move = player.do_human_move(suitable_tiles)
 
         tile = player.take_tile_out_of_hand(move)
         self.board.process_new_tile(tile, player)
@@ -315,32 +347,24 @@ class Game:
             player.hand = []
             player.is_move_available = True
 
-    @staticmethod
-    def do_human_move(player: Player, suitable_tiles: List[Tile]) -> Tile:
-        valid_move = False
-        move = None
-        # todo decide if need to allow the blocking move for a double
-        while not valid_move:
-            try:
-                move = Tile(*map(int, input().split()))
-            except (ValueError, TypeError):
-                print('invalid move')
-                continue
+    def get_goats(self) -> List[str]:
+        return [player.name for player in self.players if player.is_a_goat()]
 
-            if move not in player.hand:
-                print(f"there is no {move} in the player's hand")
-            elif move not in suitable_tiles:
-                print(f'{move} is not a suitable move')
+
+def run_bot_comparison(n: int):
+    resulting_goats = {}
+    for _ in range(n):
+        game = Game([Player('AI easy', is_bot=True, bot_difficulty=0),
+                     Player('AI normal', is_bot=True, bot_difficulty=1)])
+        goats = game.run()
+        for goat in goats:
+            if goat in resulting_goats:
+                resulting_goats[goat] += 1
             else:
-                valid_move = True
+                resulting_goats[goat] = 1
 
-        return move
-
-    @staticmethod
-    def do_bot_move(suitable_tiles: List[Tile]) -> Tile:
-        return random.choice(suitable_tiles)
+    print(resulting_goats)
 
 
 if __name__ == '__main__':
-    game = Game([Player('me'), Player('AI 1', is_bot=True)])
-    game.run()
+    run_bot_comparison(100)
