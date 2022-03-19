@@ -1,3 +1,4 @@
+import logging
 import random
 from dataclasses import dataclass, field
 from itertools import combinations_with_replacement, cycle
@@ -84,7 +85,7 @@ class Player:
     def is_a_goat(self) -> bool:
         return self.score >= 101
 
-    def do_human_move(self, suitable_tiles: List[Tile]) -> Tile:
+    def choose_tile(self, suitable_tiles: List[Tile]) -> Tile:
         valid_move = False
         move = None
         # todo decide if need to allow the blocking move for a double
@@ -104,7 +105,18 @@ class Player:
 
         return move
 
-    def do_bot_move(self, suitable_tiles: List[Tile]) -> Tile:
+    def __str__(self):
+        return f'{self.name}'
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class AI(Player):
+    def __init__(self, name: str, difficulty: int):
+        super().__init__(name=f'AI {name}', is_bot=True, bot_difficulty=difficulty)
+
+    def choose_tile(self, suitable_tiles: List[Tile]) -> Tile:
         # easy difficulty: pick a random suitable tile
         if self.bot_difficulty == 0:
             return random.choice(suitable_tiles)
@@ -112,12 +124,6 @@ class Player:
         # normal difficulty: pick a suitable tile with highest weight
         if self.bot_difficulty == 1:
             return sorted(suitable_tiles, key=lambda x: x.weight, reverse=True)[0]
-
-    def __str__(self):
-        return f'{self.name}'
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class Board:
@@ -182,7 +188,11 @@ class Board:
 
 class Game:
     def __init__(self, players: List[Player]):
+        if any(not player.is_bot for player in players):
+            logger.setLevel(logging.DEBUG)
+
         random.shuffle(players)
+
         self.players = players
         self.player_count = len(self.players)
         self.stock = None
@@ -241,11 +251,9 @@ class Game:
         logger.debug(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
 
         player.is_move_available = True
+        move = player.choose_tile(suitable_tiles)
         if player.is_bot:
-            move = player.do_bot_move(suitable_tiles)
             logger.debug(move)
-        else:
-            move = player.do_human_move(suitable_tiles)
 
         tile = player.take_tile_out_of_hand(move)
         self.board.process_new_tile(tile, player)
@@ -267,7 +275,7 @@ class Game:
     # - 0 0
     # - highest rank tile such as 5 6
     def make_opening_move(self):
-        for double in [Tile(i, i) for i in range(1, cfg.highest_tile_value + 1)]:
+        for double in [Tile(i, i) for i in range(1, cfg.highest_tile_value + 1)] + [Tile(0, 0)]:
             for i, player in enumerate(self.players):
                 if double in player.hand:
                     logger.debug(f'{player.name} has {double}, they start')
@@ -276,14 +284,6 @@ class Game:
                     # move the player to the last position because they already made the first move
                     self.players.append(self.players.pop(i))
                     return
-
-        zero_double = Tile(0, 0)
-        for i, player in enumerate(self.players):
-            if zero_double in player.hand:
-                logger.debug(f'{player.name} has {zero_double}, they start')
-                self.board.add_starting_tile(player.take_tile_out_of_hand(zero_double))
-                self.players.append(self.players.pop(i))
-                return
 
         highest_rank_tile = Tile(0, 0)
         hrt_player_index = 0
@@ -362,11 +362,11 @@ class Game:
 def run_bot_comparison(n: int):
     resulting_goats = {}
     for _ in range(n):
-        game = Game([Player('AI easy', is_bot=True, bot_difficulty=0),
-                     Player('AI easy 2', is_bot=True, bot_difficulty=0),
-                     Player('AI easy 3', is_bot=True, bot_difficulty=0),
-                     Player('AI easy 4', is_bot=True, bot_difficulty=0)])
-        goats = game.run()
+        bot_game = Game([AI('easy 1', difficulty=0),
+                         AI('easy 2', difficulty=0),
+                         AI('easy 3', difficulty=0),
+                         AI('normal', difficulty=1)])
+        goats = bot_game.run()
         for goat in goats:
             if goat in resulting_goats:
                 resulting_goats[goat] += 1
@@ -380,4 +380,7 @@ def run_bot_comparison(n: int):
 
 
 if __name__ == '__main__':
-    run_bot_comparison(1000)
+    # run_bot_comparison(1000)
+    game = Game([Player('John'),
+                 AI('easy', difficulty=0)])
+    game.run()
