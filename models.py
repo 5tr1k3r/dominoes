@@ -1,12 +1,16 @@
 import logging
 import random
+import time
 from dataclasses import dataclass, field
 from itertools import combinations_with_replacement, cycle
+from threading import Thread, Event
 from typing import Optional, List
 
 import config as cfg
 from config import logger
 from utils import timeit
+
+is_ui_requires_update = Event()
 
 
 class Tile:
@@ -111,6 +115,9 @@ class Player:
     def __repr__(self):
         return self.__str__()
 
+    def get_tile_count(self) -> int:
+        return len(self.hand)
+
 
 class AI(Player):
     def __init__(self, name: str, difficulty: int):
@@ -186,8 +193,9 @@ class Board:
         chosen_path.depth += 1
 
 
-class Game:
+class Game(Thread):
     def __init__(self, players: List[Player]):
+        super().__init__(daemon=True)
         if any(not player.is_bot for player in players):
             logger.setLevel(logging.DEBUG)
 
@@ -196,23 +204,30 @@ class Game:
         self.players = players
         self.player_count = len(self.players)
         self.stock = None
-        self.board = None
+        self.board: Optional[Board] = None
+        self.started = False
+        self.is_done = False
+        self.current_player_id: Optional[int] = None
 
         if self.player_count < 2:
             raise RuntimeError('not enough players, need at least 2')
         if self.player_count > 4:
             raise RuntimeError('too many players, can only have 2-4 players')
 
-    def run(self):
+    def run(self) -> List[str]:
+        self.wait_for_game_start()
+
         round_number = 1
         while not self.is_game_over():
             self.start_round(round_number)
 
-            for player in cycle(self.players):
+            for i, player in enumerate(cycle(self.players)):
                 logger.debug('-' * cfg.separator_line_length)
-                if self.is_tie() or self.is_someone_finished():
+                if self.is_tie() or self.is_someone_finished() or self.is_done:
                     self.write_down_scores()
                     break
+
+                self.current_player_id = i % self.player_count
 
                 self.board.show()
                 self.make_move(player)
@@ -233,6 +248,8 @@ class Game:
         self.make_opening_move()
         self.show_players_hands()
 
+        self.is_done = False
+
     def make_move(self, player: Player):
         suitable_tiles = self.get_suitable_tiles(player)
         while not self.get_suitable_tiles(player):
@@ -243,9 +260,7 @@ class Game:
                 player.is_move_available = False
                 return
 
-            new_tile_from_stock = self.stock.pop()
-            player.hand.append(new_tile_from_stock)
-            logger.debug(f'{player.name} has no suitable tiles, taking one tile from stock... {new_tile_from_stock}')
+            self.draw_one_tile_from_stock(player)
             suitable_tiles = self.get_suitable_tiles(player)
 
         logger.debug(f'{player.name} turn, available tiles {player.hand}, suitable tiles {suitable_tiles}')
@@ -258,6 +273,14 @@ class Game:
         tile = player.take_tile_out_of_hand(move)
         self.board.process_new_tile(tile, player)
 
+        is_ui_requires_update.set()
+
+    def draw_one_tile_from_stock(self, player: Player):
+        new_tile_from_stock = self.stock.pop()
+        player.hand.append(new_tile_from_stock)
+        logger.debug(f'{player.name} takes one tile from stock... {new_tile_from_stock}')
+        is_ui_requires_update.set()
+
     # Shuffle the entire stock before drawing tiles from it
     def draw_tiles_from_stock(self):
         if self.player_count == 2:
@@ -269,6 +292,8 @@ class Game:
         for player in self.players:
             for _ in range(tiles_to_draw):
                 player.hand.append(self.stock.pop())
+
+        is_ui_requires_update.set()
 
     # Priority for opening move:
     # - lowest double except 0 0
@@ -357,6 +382,10 @@ class Game:
     def get_goats(self) -> List[str]:
         return [player.name for player in self.players if player.is_a_goat()]
 
+    def wait_for_game_start(self):
+        while not self.started:
+            time.sleep(0.01)
+
 
 @timeit
 def run_bot_comparison(n: int):
@@ -366,6 +395,7 @@ def run_bot_comparison(n: int):
                          AI('easy 2', difficulty=0),
                          AI('easy 3', difficulty=0),
                          AI('normal', difficulty=1)])
+        bot_game.started = True
         goats = bot_game.run()
         for goat in goats:
             if goat in resulting_goats:
@@ -381,6 +411,9 @@ def run_bot_comparison(n: int):
 
 if __name__ == '__main__':
     # run_bot_comparison(1000)
-    game = Game([Player('John'),
-                 AI('easy', difficulty=0)])
+    game = Game([
+        Player('John'),
+        AI('easy', difficulty=0)
+    ])
+    game.started = True
     game.run()
