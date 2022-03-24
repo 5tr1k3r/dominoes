@@ -237,7 +237,7 @@ class Game(Thread):
         return self.get_goats()
 
     def start_round(self, n: int):
-        self.stock = [Tile(x, y) for x, y in combinations_with_replacement(range(cfg.highest_tile_value + 1), 2)]
+        self.stock = [Tile(x, y) for x, y in combinations_with_replacement(range(7), 2)]
         self.board = Board()
 
         round_line = f' ROUND {n} '.center(cfg.separator_line_length, '=')
@@ -300,7 +300,7 @@ class Game(Thread):
     # - 0 0
     # - highest rank tile such as 5 6
     def make_opening_move(self):
-        for double in [Tile(i, i) for i in range(1, cfg.highest_tile_value + 1)] + [Tile(0, 0)]:
+        for double in [Tile(i, i) for i in range(1, 7)] + [Tile(0, 0)]:
             for i, player in enumerate(self.players):
                 if double in player.hand:
                     logger.debug(f'{player.name} has {double}, they start')

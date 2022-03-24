@@ -1,10 +1,11 @@
 import math
-from pathlib import Path
-from typing import Tuple, Dict, List
+from itertools import combinations_with_replacement
+from typing import Tuple, List, Dict
 
 import arcade
 from arcade import Window, View, Text
 
+import config as cfg
 from models import Game, Player, is_ui_requires_update
 
 WIDTH = 1000
@@ -108,8 +109,27 @@ class HelpView(View):
 
 
 class GTile(arcade.Sprite):
-    def __init__(self, image: str):
-        super().__init__(image)
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+        self.is_face_up = False
+        self.image_file = f'assets/tiles/{x}{y}.png'
+        self.face_down_image = 'assets/tiles/face_down.png'
+
+        image = self.image_file if cfg.all_hands_are_shown else self.face_down_image
+
+        super().__init__(image, hit_box_algorithm='None')
+
+    def turn_face_down(self):
+        if cfg.all_hands_are_shown:
+            return
+
+        self.texture = arcade.load_texture(self.face_down_image)
+        self.is_face_up = False
+
+    def turn_face_up(self):
+        self.texture = arcade.load_texture(self.image_file)
+        self.is_face_up = True
 
     def is_horizontal(self):
         return self.angle == 0
@@ -127,13 +147,11 @@ class GameView(View):
         self.game: Game = self.window.game
         self.game.started = True
 
-        self.all_tiles: Dict[int, GTile] = {}
-        self.face_down_tile = GTile('assets/tiles/face_down.png')
+        self.all_tiles: Dict[int, GTile] = {int(f'{x}{y}'): GTile(x, y)
+                                            for x, y in combinations_with_replacement(range(7), 2)}
 
         self.hand_tiles = arcade.SpriteList()
         self.players_names = self.render_players_names()
-
-        self.populate_tiles()
 
     def on_show(self):
         arcade.set_background_color(arcade.color.EERIE_BLACK)
@@ -192,11 +210,6 @@ class GameView(View):
     def draw_board(self):
         pass
 
-    def populate_tiles(self):
-        for tile_img in Path('assets/tiles').iterdir():
-            if tile_img.stem != 'face_down':
-                self.all_tiles[int(tile_img.stem)] = GTile(str(tile_img))
-
     def on_update(self, delta_time: float):
         if is_ui_requires_update.is_set():
             self.update_players_hands()
@@ -204,8 +217,7 @@ class GameView(View):
 
     def update_players_hands(self):
         available_space = WIDTH - self.ui_width
-        margin = 5  # distance from all borders of ui
-        tile_margin = 3  # distance between tiles
+        tile_margin = 5  # distance between tiles
 
         # todo fix bug where gtiles are offset after tiles were taken from stock
 
@@ -242,6 +254,11 @@ class GameView(View):
 
             for tile in player.hand:
                 graphic_tile = self.all_tiles[int(f'{tile.x}{tile.y}')]
+                if i == self.game.current_player_id:
+                    graphic_tile.turn_face_up()
+                elif graphic_tile.is_face_up:
+                    graphic_tile.turn_face_down()
+
                 graphic_tile.angle = -90.0 if is_top_or_bottom else 0
 
                 graphic_tile.scale = new_scale
