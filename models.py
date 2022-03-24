@@ -127,25 +127,28 @@ class AI(Player):
 
 class Board:
     def __init__(self):
-        self.tiles = []
+        self.lanes: List[List[Tile]] = []
         self.paths = []
+        self.starting_tile: Optional[Tile] = None
 
     def add_starting_tile(self, tile: Tile):
-        self.tiles.append(tile)
+        self.starting_tile = tile
+
         if tile.is_double():
             for i in range(4):
                 self.paths.append(Path(index=i, value=tile.x, depth=1))
+                self.lanes.append([])
         else:
             self.paths.append(Path(index=0, value=tile.x, depth=1))
             self.paths.append(Path(index=1, value=tile.y, depth=1))
+            self.lanes.extend(([], []))
 
     def show(self):
-        logger.debug(f'Tiles: {self.tiles}')
+        logger.debug(f'Lanes: {self.lanes}')
         logger.debug(f'Open paths: {self.paths}')
 
     def process_new_tile(self, tile: Tile, player: Player):
         # we already know that the tile is suitable for the board
-        self.tiles.append(tile)
 
         # filtering out paths that are not suitable for the tile
         paths = [path for path in self.paths if tile.x == path.value or tile.y == path.value]
@@ -177,12 +180,15 @@ class Board:
         paths.sort(key=lambda x: x.depth)
 
         # using the first suitable path
-        chosen_path = self.paths[paths[0].index]
+        chosen_path_index = paths[0].index
+        chosen_path = self.paths[chosen_path_index]
         if tile.x == chosen_path.value:
             chosen_path.value = tile.y
         else:
             chosen_path.value = tile.x
         chosen_path.depth += 1
+
+        self.lanes[chosen_path_index].append(tile)
 
 
 class Game(Thread):

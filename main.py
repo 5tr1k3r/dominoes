@@ -150,6 +150,7 @@ class GameView(View):
         self.all_tiles: Dict[int, GTile] = {int(f'{x}{y}'): GTile(x, y)
                                             for x, y in combinations_with_replacement(range(7), 2)}
 
+        self.board_tiles = arcade.SpriteList()
         self.hand_tiles = arcade.SpriteList()
         self.suitable_gtiles = arcade.SpriteList()
         self.players_names = self.render_players_names()
@@ -218,11 +219,13 @@ class GameView(View):
         self.hand_tiles.draw()
 
     def draw_board(self):
-        pass
+        self.board_tiles.draw()
 
     def on_update(self, delta_time: float):
         if is_ui_requires_update.is_set():
             self.update_players_hands()
+            self.update_board()
+
             is_ui_requires_update.clear()
 
     def update_players_hands(self):
@@ -313,6 +316,7 @@ class GameView(View):
             name.draw()
 
     def render_players_names(self) -> List[Text]:
+        # todo some bug with players having wrong names
         result = []
         margin = 8
         size = 20
@@ -330,6 +334,71 @@ class GameView(View):
                                font_size=size, rotation=data[i][3]))
 
         return result
+
+    def update_board(self):
+        scale = 0.2
+        margin = 5
+        gtile_h = math.ceil(TILE_HEIGHT * scale)
+        middle_x = WIDTH // 2
+        middle_y = HEIGHT // 2
+
+        starting_gtile = None
+
+        self.board_tiles.clear()
+        if self.game.board.starting_tile:
+            tile = self.game.board.starting_tile
+            starting_gtile = self.all_tiles[int(f'{tile.x}{tile.y}')]
+
+            starting_gtile.turn_face_up()
+            starting_gtile.scale = scale
+            starting_gtile.center_x = middle_x
+            starting_gtile.center_y = middle_y
+
+            self.board_tiles.append(starting_gtile)
+
+        for i, lane in enumerate(self.game.board.lanes):
+            if not lane:
+                continue
+
+            anchors = [
+                starting_gtile.bottom - margin,
+                starting_gtile.top + margin,
+                starting_gtile.left - margin,
+                starting_gtile.right + margin,
+            ]
+
+            # 0 - bottom, 1 - top, 2 - left, 3 - right
+            for tile in lane:
+                gtile = self.all_tiles[int(f'{tile.x}{tile.y}')]
+
+                gtile.turn_face_up()
+                gtile.scale = scale
+
+                if i == 0:
+                    gtile.angle = -90.0
+                    gtile.top = anchors[i]
+                    gtile.center_x = middle_x
+                    anchors[i] -= gtile_h + margin
+
+                elif i == 1:
+                    gtile.angle = -90.0
+                    gtile.bottom = anchors[i]
+                    gtile.center_x = middle_x
+                    anchors[i] += gtile_h + margin
+
+                elif i == 2:
+                    gtile.angle = 0
+                    gtile.right = anchors[i]
+                    gtile.center_y = middle_y
+                    anchors[i] -= gtile_h + margin
+
+                elif i == 3:
+                    gtile.angle = 0
+                    gtile.left = anchors[i]
+                    gtile.center_y = middle_y
+                    anchors[i] += gtile_h + margin
+
+                self.board_tiles.append(gtile)
 
 
 class Dominoes(Window):
