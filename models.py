@@ -92,13 +92,14 @@ class Player:
 
     def choose_tile(self, suitable_tiles: List[Tile]) -> Tile:
         # todo decide if need to allow the blocking move for a double
-
+        self.chosen_move = None
         while self.chosen_move is None:
             time.sleep(0.01)
 
         move = self.chosen_move
         self.chosen_move = None
 
+        # noinspection PyTypeChecker
         return move
 
     def __str__(self):
