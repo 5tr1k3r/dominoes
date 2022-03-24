@@ -70,7 +70,7 @@ class Player:
 
     def show_hand(self):
         hand_line = ', '.join(str(tile) for tile in self.hand)
-        logger.debug(hand_line)
+        logger.debug(hand_line + f' {self.name}')
 
     def get_total_weight(self) -> int:
         return sum(x.weight for x in self.hand)

@@ -321,10 +321,10 @@ class GameView(View):
         margin = 8
         size = 20
         data = [
-            (WIDTH / 2, self.ui_width + margin, 'bottom', 0),
-            (WIDTH / 2, HEIGHT - self.ui_width - margin, 'top', 0),
-            (self.ui_width + margin, HEIGHT / 2, 'bottom', -90.0),
-            (WIDTH - self.ui_width - margin, HEIGHT / 2, 'bottom', 90.0),
+            (WIDTH / 2 + self.ui_width, self.ui_width + margin, 'bottom', 0),
+            (WIDTH / 2 - self.ui_width, HEIGHT - self.ui_width - margin, 'top', 0),
+            (self.ui_width + margin, HEIGHT / 2 - self.ui_width, 'bottom', -90.0),
+            (WIDTH - self.ui_width - margin, HEIGHT / 2 + self.ui_width, 'bottom', 90.0),
         ]
 
         names = [player.name for player in self.game.players]
