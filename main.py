@@ -219,8 +219,6 @@ class GameView(View):
         available_space = WIDTH - self.ui_width
         tile_margin = 5  # distance between tiles
 
-        # todo fix bug where gtiles are offset after tiles were taken from stock
-
         self.hand_tiles.clear()
         for i, player in enumerate(self.game.players):
             tile_count = player.get_tile_count()
@@ -254,8 +252,13 @@ class GameView(View):
 
             for tile in player.hand:
                 graphic_tile = self.all_tiles[int(f'{tile.x}{tile.y}')]
+                graphic_tile.alpha = 255
+
                 if i == self.game.current_player_id:
                     graphic_tile.turn_face_up()
+                    if tile not in self.game.get_suitable_tiles(player):
+                        graphic_tile.alpha = 120
+
                 elif graphic_tile.is_face_up:
                     graphic_tile.turn_face_down()
 

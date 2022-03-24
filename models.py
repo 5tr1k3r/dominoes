@@ -410,10 +410,10 @@ def run_bot_comparison(n: int):
 
 
 if __name__ == '__main__':
-    # run_bot_comparison(1000)
-    game = Game([
-        Player('John'),
-        AI('easy', difficulty=0)
-    ])
-    game.started = True
-    game.run()
+    run_bot_comparison(1000)
+    # game = Game([
+    #     Player('John'),
+    #     AI('easy', difficulty=0)
+    # ])
+    # game.started = True
+    # game.run()
