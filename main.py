@@ -165,7 +165,6 @@ class GameView(View):
         self.draw_stock_tile_count()
         self.draw_players_names()
         self.draw_hands()
-        pass
 
     def on_key_press(self, symbol: int, modifiers: int):
         if symbol == arcade.key.ESCAPE:
@@ -225,6 +224,7 @@ class GameView(View):
         if is_ui_requires_update.is_set():
             self.update_players_hands()
             self.update_board()
+            self.update_players_names()
 
             is_ui_requires_update.clear()
 
@@ -316,7 +316,6 @@ class GameView(View):
             name.draw()
 
     def render_players_names(self) -> List[Text]:
-        # todo some bug with players having wrong names
         result = []
         margin = 8
         size = 20
@@ -415,6 +414,10 @@ class GameView(View):
                         ends[i] = tile.x
 
                 self.board_tiles.append(gtile)
+
+    def update_players_names(self):
+        for text, player in zip(self.players_names, self.game.players):
+            text.text = player.name
 
 
 class Dominoes(Window):
