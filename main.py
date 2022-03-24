@@ -343,6 +343,7 @@ class GameView(View):
         middle_y = HEIGHT // 2
 
         starting_gtile = None
+        ends = None
 
         self.board_tiles.clear()
         if self.game.board.starting_tile:
@@ -353,6 +354,8 @@ class GameView(View):
             starting_gtile.scale = scale
             starting_gtile.center_x = middle_x
             starting_gtile.center_y = middle_y
+
+            ends = [tile.x, tile.y, tile.x, tile.x]
 
             self.board_tiles.append(starting_gtile)
 
@@ -397,6 +400,19 @@ class GameView(View):
                     gtile.left = anchors[i]
                     gtile.center_y = middle_y
                     anchors[i] += gtile_h + margin
+
+                if i in (0, 3):
+                    if tile.x != ends[i]:
+                        gtile.angle += 180.0
+                        ends[i] = tile.x
+                    else:
+                        ends[i] = tile.y
+                else:
+                    if tile.y != ends[i]:
+                        gtile.angle += 180.0
+                        ends[i] = tile.y
+                    else:
+                        ends[i] = tile.x
 
                 self.board_tiles.append(gtile)
 
