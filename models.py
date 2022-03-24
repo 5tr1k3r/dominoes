@@ -66,6 +66,7 @@ class Player:
         self.hand = []
         self.is_move_available = True
         self.score = 0
+        self.chosen_move = None
 
     def show_hand(self):
         hand_line = ', '.join(str(tile) for tile in self.hand)
@@ -90,22 +91,13 @@ class Player:
         return self.score >= 101
 
     def choose_tile(self, suitable_tiles: List[Tile]) -> Tile:
-        valid_move = False
-        move = None
         # todo decide if need to allow the blocking move for a double
-        while not valid_move:
-            try:
-                move = Tile(*map(int, input().split()))
-            except (ValueError, TypeError):
-                logger.info('invalid move')
-                continue
 
-            if move not in self.hand:
-                logger.info(f"there is no {move} in the player's hand")
-            elif move not in suitable_tiles:
-                logger.info(f'{move} is not a suitable move')
-            else:
-                valid_move = True
+        while self.chosen_move is None:
+            time.sleep(0.01)
+
+        move = self.chosen_move
+        self.chosen_move = None
 
         return move
 
@@ -267,8 +259,7 @@ class Game(Thread):
 
         player.is_move_available = True
         move = player.choose_tile(suitable_tiles)
-        if player.is_bot:
-            logger.debug(move)
+        logger.debug(move)
 
         tile = player.take_tile_out_of_hand(move)
         self.board.process_new_tile(tile, player)

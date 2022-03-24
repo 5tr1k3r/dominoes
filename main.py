@@ -6,7 +6,7 @@ import arcade
 from arcade import Window, View, Text
 
 import config as cfg
-from models import Game, Player, is_ui_requires_update
+from models import Game, Player, is_ui_requires_update, Tile
 
 WIDTH = 1000
 HEIGHT = 1000
@@ -151,6 +151,7 @@ class GameView(View):
                                             for x, y in combinations_with_replacement(range(7), 2)}
 
         self.hand_tiles = arcade.SpriteList()
+        self.suitable_gtiles = arcade.SpriteList()
         self.players_names = self.render_players_names()
 
     def on_show(self):
@@ -172,6 +173,15 @@ class GameView(View):
         # if symbol == arcade.key.ESCAPE:
         #     self.game.is_done = True
         #     self.window.show_view(MenuView())
+
+    def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
+        suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
+        if not suitable_gtiles:
+            return
+
+        # noinspection PyUnresolvedReferences
+        x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
+        self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
 
     def draw_ui(self):
         colors = [arcade.color.DARK_SLATE_GRAY] * 4
@@ -220,6 +230,7 @@ class GameView(View):
         tile_margin = 5  # distance between tiles
 
         self.hand_tiles.clear()
+        self.suitable_gtiles.clear()
         for i, player in enumerate(self.game.players):
             tile_count = player.get_tile_count()
             if tile_count == 0:
@@ -258,6 +269,8 @@ class GameView(View):
                     graphic_tile.turn_face_up()
                     if tile not in self.game.get_suitable_tiles(player):
                         graphic_tile.alpha = 120
+                    else:
+                        self.suitable_gtiles.append(graphic_tile)
 
                 elif graphic_tile.is_face_up:
                     graphic_tile.turn_face_down()
