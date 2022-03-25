@@ -156,6 +156,8 @@ class GameView(View):
         self.zoom = 0.2
         self.camera_speed = 0.2
 
+        self.is_help_screen = False
+
     def on_show(self):
         arcade.set_background_color(arcade.color.EERIE_BLACK)
 
@@ -168,8 +170,12 @@ class GameView(View):
         self.ui_camera.use()
         self.draw_ui()
         self.draw_stock_tile_count()
+        self.draw_help_tip()
         self.draw_players_names()
         self.draw_hands()
+
+        if self.is_help_screen:
+            self.show_help_screen()
 
     def on_key_press(self, symbol: int, modifiers: int):
         board_anchor_speed = 7
@@ -192,6 +198,8 @@ class GameView(View):
             self.board_anchor.change_x = -board_anchor_speed
         elif symbol == arcade.key.RIGHT:
             self.board_anchor.change_x = board_anchor_speed
+        elif symbol == arcade.key.F1:
+            self.is_help_screen = True
 
         if symbol in (arcade.key.NUM_ADD, arcade.key.NUM_SUBTRACT, arcade.key.HOME):
             self.update_board()
@@ -205,6 +213,8 @@ class GameView(View):
             self.board_anchor.change_y = 0
         elif symbol in (arcade.key.LEFT, arcade.key.RIGHT):
             self.board_anchor.change_x = 0
+        elif symbol == arcade.key.F1:
+            self.is_help_screen = False
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
@@ -459,6 +469,42 @@ class GameView(View):
         position = Vec2(self.board_anchor.center_x - WIDTH / 2,
                         self.board_anchor.center_y - HEIGHT / 2)
         self.board_camera.move_to(position, self.camera_speed)
+
+    def show_help_screen(self):
+        # todo add rules. or not
+        top_margin = 20
+        margin = 15
+        step = 50
+        half = self.ui_width / 2
+        levels = [HEIGHT - self.ui_width - top_margin - i * step for i in range(15)]
+        color = arcade.color.BLACK
+        font = "Courier New"
+        pad = 10
+
+        arcade.draw_lrtb_rectangle_filled(half, WIDTH - half, HEIGHT - half, half,
+                                          color=arcade.color.ASH_GREY + (230,))
+        arcade.draw_lrtb_rectangle_outline(half, WIDTH - half, HEIGHT - half, half,
+                                           color=color, border_width=3)
+        arcade.draw_text('HELP', WIDTH // 2, levels[0], anchor_x='center',
+                         font_size=50, color=color, font_name=font, bold=True)
+        for i, line in zip(range(2, 8),
+                           (
+                                   f'{"Esc":<{pad}}quit',
+                                   f'{"arrows":<{pad}}move camera',
+                                   f'{"num +":<{pad}}zoom in',
+                                   f'{"num -":<{pad}}zoom out',
+                                   f'{"Home":<{pad}}reset camera',
+                                   f'{"F1":<{pad}}help',
+                           )):
+            arcade.draw_text(line, self.ui_width + margin, levels[i], font_name=font,
+                             anchor_x='left', font_size=30, color=color)
+
+    def draw_help_tip(self):
+        margin = 7
+        arcade.draw_text(f'F1 - Help',
+                         self.ui_width + margin, HEIGHT - self.ui_width - margin,
+                         anchor_x='left', anchor_y='top',
+                         font_size=16, color=arcade.color.RED)
 
 
 class Dominoes(Window):
