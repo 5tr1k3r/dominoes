@@ -4,6 +4,7 @@ from typing import Tuple, List, Dict
 
 import arcade
 from arcade import Window, View, Text
+from pyglet.math import Vec2
 
 import config as cfg
 from models import Game, Player, is_ui_requires_update, Tile
@@ -131,12 +132,6 @@ class GTile(arcade.Sprite):
         self.texture = arcade.load_texture(self.image_file)
         self.is_face_up = True
 
-    def is_horizontal(self):
-        return self.angle == 0
-
-    def is_vertical(self):
-        return self.angle == -90.0
-
 
 class GameView(View):
     def __init__(self):
@@ -155,24 +150,61 @@ class GameView(View):
         self.suitable_gtiles = arcade.SpriteList()
         self.players_names = self.render_players_names()
 
+        self.board_anchor = arcade.Sprite(center_x=WIDTH // 2, center_y=HEIGHT // 2)
+        self.board_camera = arcade.Camera()
+        self.ui_camera = arcade.Camera()
+        self.zoom = 0.2
+        self.camera_speed = 0.2
+
     def on_show(self):
         arcade.set_background_color(arcade.color.EERIE_BLACK)
 
     def on_draw(self):
         self.clear()
+
+        self.board_camera.use()
         self.draw_board()
+
+        self.ui_camera.use()
         self.draw_ui()
         self.draw_stock_tile_count()
         self.draw_players_names()
         self.draw_hands()
 
     def on_key_press(self, symbol: int, modifiers: int):
+        board_anchor_speed = 7
+
         if symbol == arcade.key.ESCAPE:
             arcade.close_window()
+        elif symbol == arcade.key.NUM_ADD:
+            self.zoom += 0.04
+        elif symbol == arcade.key.NUM_SUBTRACT:
+            self.zoom -= 0.04
+        elif symbol == arcade.key.HOME:
+            self.zoom = 0.2
+            self.board_anchor.center_x = WIDTH // 2
+            self.board_anchor.center_y = HEIGHT // 2
+        elif symbol == arcade.key.UP:
+            self.board_anchor.change_y = board_anchor_speed
+        elif symbol == arcade.key.DOWN:
+            self.board_anchor.change_y = -board_anchor_speed
+        elif symbol == arcade.key.LEFT:
+            self.board_anchor.change_x = -board_anchor_speed
+        elif symbol == arcade.key.RIGHT:
+            self.board_anchor.change_x = board_anchor_speed
+
+        if symbol in (arcade.key.NUM_ADD, arcade.key.NUM_SUBTRACT, arcade.key.HOME):
+            self.update_board()
 
         # if symbol == arcade.key.ESCAPE:
         #     self.game.is_done = True
         #     self.window.show_view(MenuView())
+
+    def on_key_release(self, symbol: int, modifiers: int):
+        if symbol in (arcade.key.UP, arcade.key.DOWN):
+            self.board_anchor.change_y = 0
+        elif symbol in (arcade.key.LEFT, arcade.key.RIGHT):
+            self.board_anchor.change_x = 0
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
@@ -221,6 +253,7 @@ class GameView(View):
         self.board_tiles.draw()
 
     def on_update(self, delta_time: float):
+        self.update_camera()
         if is_ui_requires_update.is_set():
             self.update_players_hands()
             self.update_board()
@@ -335,7 +368,7 @@ class GameView(View):
         return result
 
     def update_board(self):
-        scale = 0.2
+        scale = self.zoom
         margin = 5
         gtile_h = math.ceil(TILE_HEIGHT * scale)
         middle_x = WIDTH // 2
@@ -418,6 +451,14 @@ class GameView(View):
     def update_players_names(self):
         for text, player in zip(self.players_names, self.game.players):
             text.text = player.name
+
+    def update_camera(self):
+        self.board_anchor.update()
+
+        # Scroll to the proper location
+        position = Vec2(self.board_anchor.center_x - WIDTH / 2,
+                        self.board_anchor.center_y - HEIGHT / 2)
+        self.board_camera.move_to(position, self.camera_speed)
 
 
 class Dominoes(Window):
