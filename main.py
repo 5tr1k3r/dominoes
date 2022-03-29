@@ -496,9 +496,10 @@ class GameView(View):
                          font_name=cfg.help_font, bold=True)
         for i, line in enumerate((
                 f'{"Esc":<{cfg.help_pad}}quit',
+                f'{"drag RMB":<{cfg.help_pad}}move camera',
                 f'{"arrows":<{cfg.help_pad}}move camera',
-                f'{"num +":<{cfg.help_pad}}zoom in',
-                f'{"num -":<{cfg.help_pad}}zoom out',
+                f'{"scroll wheel":<{cfg.help_pad}}zoom in/out',
+                f'{"num +/-":<{cfg.help_pad}}zoom in/out',
                 f'{"Home":<{cfg.help_pad}}reset camera',
                 f'{"F1":<{cfg.help_pad}}help',
         )):
