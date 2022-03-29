@@ -244,35 +244,19 @@ class GameView(View):
         colors = [cfg.table_color] * 4
         colors[self.game.current_player_id] = cfg.active_table_color
 
-        arcade.draw_lrtb_rectangle_filled(self.ui_width, WIDTH,
-                                          self.ui_width, 0,
-                                          colors[0])
-        arcade.draw_lrtb_rectangle_filled(0, WIDTH - self.ui_width,
-                                          HEIGHT, HEIGHT - self.ui_width,
-                                          colors[1])
-        arcade.draw_lrtb_rectangle_outline(self.ui_width, WIDTH,
-                                           self.ui_width, 0,
-                                           cfg.table_outline_color,
-                                           border_width=cfg.table_outline_border_width)
-        arcade.draw_lrtb_rectangle_outline(0, WIDTH - self.ui_width,
-                                           HEIGHT, HEIGHT - self.ui_width,
-                                           cfg.table_outline_color,
-                                           border_width=cfg.table_outline_border_width)
+        data = [
+            (self.ui_width, WIDTH, self.ui_width, 0),
+            (0, self.ui_width, HEIGHT - self.ui_width, 0),
+            (0, WIDTH - self.ui_width, HEIGHT, HEIGHT - self.ui_width),
+            (WIDTH - self.ui_width, WIDTH, HEIGHT, self.ui_width)
+        ]
 
-        if self.game.player_count > 2:
-            arcade.draw_lrtb_rectangle_filled(0, self.ui_width,
-                                              HEIGHT - self.ui_width, 0,
-                                              colors[2])
-            arcade.draw_lrtb_rectangle_filled(WIDTH - self.ui_width, WIDTH,
-                                              HEIGHT, self.ui_width,
-                                              colors[3])
-            arcade.draw_lrtb_rectangle_outline(0, self.ui_width,
-                                               HEIGHT - self.ui_width, 0,
-                                               cfg.table_outline_color,
-                                               border_width=cfg.table_outline_border_width)
-            arcade.draw_lrtb_rectangle_outline(WIDTH - self.ui_width, WIDTH,
-                                               HEIGHT, self.ui_width,
-                                               cfg.table_outline_color,
+        if self.game.player_count == 2:
+            data[1], data[2] = data[2], data[1]
+
+        for i in range(self.game.player_count):
+            arcade.draw_lrtb_rectangle_filled(*data[i], colors[i])
+            arcade.draw_lrtb_rectangle_outline(*data[i], cfg.table_outline_color,
                                                border_width=cfg.table_outline_border_width)
 
     def draw_hands(self):
@@ -293,6 +277,11 @@ class GameView(View):
     def update_players_hands(self):
         available_space = WIDTH - self.ui_width
 
+        if self.game.player_count == 2:
+            player_ids = (0, 2, 1, 3)
+        else:
+            player_ids = (0, 1, 2, 3)
+
         self.hand_tiles.clear()
         self.suitable_gtiles.clear()
         for i, player in enumerate(self.game.players):
@@ -300,9 +289,9 @@ class GameView(View):
             if tile_count == 0:
                 continue
 
-            # 0 - bottom, 1 - top, 2 - left, 3 - right
-            is_top_or_bottom = i in (0, 1)
-            is_left_or_right = i in (2, 3)
+            # 0 - bottom, 1 - left, 2 - top, 3 - right, unless playing 1v1
+            is_top_or_bottom = i in (0, player_ids[2])
+            is_left_or_right = i in (player_ids[1], 3)
 
             new_scale = self.calculate_tile_scale_in_ui(tile_count)
             graphic_tile_w = math.ceil(TILE_WIDTH * new_scale)
@@ -313,7 +302,7 @@ class GameView(View):
             tile_left = (available_space - total_width_of_tiles) // 2 + self.ui_width
             tile_bottom = (self.ui_width - graphic_tile_h) // 2
 
-            if i == 1:
+            if i == player_ids[2]:
                 tile_left -= self.ui_width
                 tile_bottom = HEIGHT - tile_bottom - graphic_tile_h
 
@@ -376,10 +365,13 @@ class GameView(View):
         margin = cfg.players_font_margin
         data = [
             (WIDTH / 2 + self.ui_width, self.ui_width + margin, 'bottom', 0),
-            (WIDTH / 2 - self.ui_width, HEIGHT - self.ui_width - margin, 'top', 0),
             (self.ui_width + margin, HEIGHT / 2 - self.ui_width, 'bottom', -90.0),
+            (WIDTH / 2 - self.ui_width, HEIGHT - self.ui_width - margin, 'top', 0),
             (WIDTH - self.ui_width - margin, HEIGHT / 2 + self.ui_width, 'bottom', 90.0),
         ]
+
+        if self.game.player_count == 2:
+            data[1], data[2] = data[2], data[1]
 
         names = [player.name for player in self.game.players]
         for i in range(self.game.player_count):
