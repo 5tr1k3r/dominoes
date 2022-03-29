@@ -157,6 +157,7 @@ class GameView(View):
         self.camera_speed = 0.2
 
         self.is_help_screen = False
+        self.holding_right_click = False
 
     def on_show(self):
         arcade.set_background_color(arcade.color.EERIE_BLACK)
@@ -217,13 +218,25 @@ class GameView(View):
             self.is_help_screen = False
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
-        suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
-        if not suitable_gtiles:
-            return
+        if button == 1:
+            suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
+            if not suitable_gtiles:
+                return
 
-        # noinspection PyUnresolvedReferences
-        x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
-        self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
+            # noinspection PyUnresolvedReferences
+            x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
+            self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
+        elif button == 4:
+            self.holding_right_click = True
+
+    def on_mouse_release(self, x: float, y: float, button: int, modifiers: int):
+        if button == 4:
+            self.holding_right_click = False
+
+    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
+        if self.holding_right_click:
+            self.board_anchor.center_x += dx
+            self.board_anchor.center_y += dy
 
     def on_mouse_scroll(self, x: int, y: int, scroll_x: int, scroll_y: int):
         if scroll_y == 1.0:
