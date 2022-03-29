@@ -7,34 +7,29 @@ from arcade import Window, View, Text
 from pyglet.math import Vec2
 
 import config as cfg
+from config import WIDTH, HEIGHT, TILE_WIDTH, TILE_HEIGHT, TITLE
 from models import Game, Player, is_ui_requires_update, Tile
-
-WIDTH = 1000
-HEIGHT = 1000
-TITLE = 'Dominoes'
-
-TILE_WIDTH = 208
-TILE_HEIGHT = 374
 
 
 class MenuView(View):
     def __init__(self):
         super().__init__()
 
-        self.vertical_margin = 80
-
-        self.play_text = Text("Play", WIDTH / 2, HEIGHT / 2 + self.vertical_margin,
-                              arcade.color.YELLOW, 42, anchor_x='center', anchor_y='center')
+        self.play_text = Text("Play", WIDTH / 2, HEIGHT / 2 + cfg.menu_vertical_margin,
+                              cfg.menu_font_color, cfg.menu_font_size,
+                              anchor_x='center', anchor_y='center')
         self.help_text = Text("Help", WIDTH / 2, HEIGHT / 2,
-                              arcade.color.YELLOW, 42, anchor_x='center', anchor_y='center')
-        self.quit_text = Text("Quit", WIDTH / 2, HEIGHT / 2 - self.vertical_margin,
-                              arcade.color.YELLOW, 42, anchor_x='center', anchor_y='center')
+                              cfg.menu_font_color, cfg.menu_font_size,
+                              anchor_x='center', anchor_y='center')
+        self.quit_text = Text("Quit", WIDTH / 2, HEIGHT / 2 - cfg.menu_vertical_margin,
+                              cfg.menu_font_color, cfg.menu_font_size,
+                              anchor_x='center', anchor_y='center')
         self.is_play_text_hovered = False
         self.is_help_text_hovered = False
         self.is_quit_text_hovered = False
 
     def on_show(self):
-        arcade.set_background_color(arcade.color.WARM_BLACK)
+        arcade.set_background_color(cfg.menu_bg_color)
 
     def on_draw(self):
         self.clear()
@@ -65,8 +60,8 @@ class MenuView(View):
             arcade.close_window()
 
     def change_text_color_on_hover(self, text: Text, mouse_x: float, mouse_y: float, status: bool,
-                                   color_on: Tuple[int, int, int] = arcade.color.GREEN,
-                                   color_off: Tuple[int, int, int] = arcade.color.YELLOW) -> bool:
+                                   color_on: Tuple[int, int, int] = cfg.menu_active_color,
+                                   color_off: Tuple[int, int, int] = cfg.menu_font_color) -> bool:
         is_text_hovered_now = self.is_text_hovered_over(text, mouse_x, mouse_y)
         if is_text_hovered_now != status:
             status = is_text_hovered_now
@@ -90,11 +85,11 @@ class HelpView(View):
         super().__init__()
         line = 'not ready yet'
         self.help = Text(line, WIDTH / 2, HEIGHT / 2,
-                         arcade.color.YELLOW, 30, anchor_x='center', anchor_y='center',
+                         cfg.menu_help_font_color, 30, anchor_x='center', anchor_y='center',
                          multiline=True, width=400)
 
     def on_show(self):
-        arcade.set_background_color(arcade.color.WARM_BLACK)
+        arcade.set_background_color(cfg.menu_help_bg_color)
 
     def on_draw(self):
         self.clear()
@@ -137,7 +132,7 @@ class GameView(View):
     def __init__(self):
         super().__init__()
 
-        self.ui_width = WIDTH * 0.12
+        self.ui_width = WIDTH * cfg.ui_width_ratio
 
         self.game: Game = self.window.game
         self.game.started = True
@@ -153,14 +148,13 @@ class GameView(View):
         self.board_anchor = arcade.Sprite(center_x=WIDTH // 2, center_y=HEIGHT // 2)
         self.board_camera = arcade.Camera()
         self.ui_camera = arcade.Camera()
-        self.zoom = 0.2
-        self.camera_speed = 0.2
+        self.zoom = cfg.starting_zoom
 
         self.is_help_screen = False
         self.holding_right_click = False
 
     def on_show(self):
-        arcade.set_background_color(arcade.color.EERIE_BLACK)
+        arcade.set_background_color(cfg.game_bg_color)
 
     def on_draw(self):
         self.clear()
@@ -169,7 +163,7 @@ class GameView(View):
         self.draw_board()
 
         self.ui_camera.use()
-        self.draw_ui()
+        self.draw_players_tables()
         self.draw_stock_tile_count()
         self.draw_help_tip()
         self.draw_players_names()
@@ -179,16 +173,16 @@ class GameView(View):
             self.show_help_screen()
 
     def on_key_press(self, symbol: int, modifiers: int):
-        board_anchor_speed = 7
+        board_anchor_speed = cfg.camera_max_speed
 
         if symbol == arcade.key.ESCAPE:
             arcade.close_window()
         elif symbol == arcade.key.NUM_ADD:
-            self.zoom += 0.04
+            self.zoom += cfg.zoom_step
         elif symbol == arcade.key.NUM_SUBTRACT:
-            self.zoom -= 0.04
+            self.zoom -= cfg.zoom_step
         elif symbol == arcade.key.HOME:
-            self.zoom = 0.2
+            self.zoom = cfg.starting_zoom
             self.board_anchor.center_x = WIDTH // 2
             self.board_anchor.center_y = HEIGHT // 2
         elif symbol == arcade.key.UP:
@@ -240,15 +234,15 @@ class GameView(View):
 
     def on_mouse_scroll(self, x: int, y: int, scroll_x: int, scroll_y: int):
         if scroll_y == 1.0:
-            self.zoom += 0.04
+            self.zoom += cfg.zoom_step
             self.update_board()
         elif scroll_y == -1.0:
-            self.zoom -= 0.04
+            self.zoom -= cfg.zoom_step
             self.update_board()
 
-    def draw_ui(self):
-        colors = [arcade.color.DARK_SLATE_GRAY] * 4
-        colors[self.game.current_player_id] = arcade.color.DARK_GREEN
+    def draw_players_tables(self):
+        colors = [cfg.table_color] * 4
+        colors[self.game.current_player_id] = cfg.active_table_color
 
         arcade.draw_lrtb_rectangle_filled(self.ui_width, WIDTH,
                                           self.ui_width, 0,
@@ -258,10 +252,12 @@ class GameView(View):
                                           colors[1])
         arcade.draw_lrtb_rectangle_outline(self.ui_width, WIDTH,
                                            self.ui_width, 0,
-                                           arcade.color.BLACK, border_width=2)
+                                           cfg.table_outline_color,
+                                           border_width=cfg.table_outline_border_width)
         arcade.draw_lrtb_rectangle_outline(0, WIDTH - self.ui_width,
                                            HEIGHT, HEIGHT - self.ui_width,
-                                           arcade.color.BLACK, border_width=2)
+                                           cfg.table_outline_color,
+                                           border_width=cfg.table_outline_border_width)
 
         if self.game.player_count > 2:
             arcade.draw_lrtb_rectangle_filled(0, self.ui_width,
@@ -272,10 +268,12 @@ class GameView(View):
                                               colors[3])
             arcade.draw_lrtb_rectangle_outline(0, self.ui_width,
                                                HEIGHT - self.ui_width, 0,
-                                               arcade.color.BLACK, border_width=2)
+                                               cfg.table_outline_color,
+                                               border_width=cfg.table_outline_border_width)
             arcade.draw_lrtb_rectangle_outline(WIDTH - self.ui_width, WIDTH,
                                                HEIGHT, self.ui_width,
-                                               arcade.color.BLACK, border_width=2)
+                                               cfg.table_outline_color,
+                                               border_width=cfg.table_outline_border_width)
 
     def draw_hands(self):
         self.hand_tiles.draw()
@@ -294,7 +292,6 @@ class GameView(View):
 
     def update_players_hands(self):
         available_space = WIDTH - self.ui_width
-        tile_margin = 5  # distance between tiles
 
         self.hand_tiles.clear()
         self.suitable_gtiles.clear()
@@ -311,7 +308,7 @@ class GameView(View):
             graphic_tile_w = math.ceil(TILE_WIDTH * new_scale)
             graphic_tile_h = math.ceil(TILE_HEIGHT * new_scale)
 
-            total_width_of_tiles = graphic_tile_w * tile_count + tile_margin * (tile_count - 1)
+            total_width_of_tiles = graphic_tile_w * tile_count + cfg.table_tile_margin * (tile_count - 1)
 
             tile_left = (available_space - total_width_of_tiles) // 2 + self.ui_width
             tile_bottom = (self.ui_width - graphic_tile_h) // 2
@@ -335,7 +332,7 @@ class GameView(View):
                 if i == self.game.current_player_id:
                     graphic_tile.turn_face_up()
                     if tile not in self.game.get_suitable_tiles(player):
-                        graphic_tile.alpha = 120
+                        graphic_tile.alpha = cfg.unsuitable_tile_alpha
                     else:
                         self.suitable_gtiles.append(graphic_tile)
 
@@ -349,31 +346,26 @@ class GameView(View):
                 graphic_tile.bottom = tile_bottom
 
                 if is_top_or_bottom:
-                    tile_left += graphic_tile_w + tile_margin
+                    tile_left += graphic_tile_w + cfg.table_tile_margin
                 else:
-                    tile_bottom += graphic_tile_w + tile_margin
+                    tile_bottom += graphic_tile_w + cfg.table_tile_margin
 
                 self.hand_tiles.append(graphic_tile)
 
     def calculate_tile_scale_in_ui(self, tile_count: int) -> float:
         available_space = WIDTH - self.ui_width
-        margin = 5  # distance from all borders of ui
-        tile_margin = 3  # distance between tiles
-        w = TILE_WIDTH
-        h = TILE_HEIGHT
-        max_pos_w = (available_space - margin * 2 - tile_margin * (tile_count - 1)) // tile_count
-        max_pos_h = self.ui_width - margin * 2
-        scale_w = max_pos_w / w
-        scale_h = max_pos_h / h
+        max_pos_w = (available_space - cfg.border_margin * 2 - cfg.table_tile_margin * (tile_count - 1)) // tile_count
+        max_pos_h = self.ui_width - cfg.border_margin * 2
+        scale_w = max_pos_w / TILE_WIDTH
+        scale_h = max_pos_h / TILE_HEIGHT
 
         return min(scale_w, scale_h)
 
     def draw_stock_tile_count(self):
-        margin = 7
         arcade.draw_text(f'Stock: {len(self.game.stock)}',
-                         self.ui_width + margin, self.ui_width + margin,
+                         self.ui_width + cfg.stock_font_margin, self.ui_width + cfg.stock_font_margin,
                          anchor_x='left', anchor_y='baseline',
-                         font_size=16)
+                         font_size=cfg.stock_font_size)
 
     def draw_players_names(self):
         for name in self.players_names:
@@ -381,8 +373,7 @@ class GameView(View):
 
     def render_players_names(self) -> List[Text]:
         result = []
-        margin = 8
-        size = 20
+        margin = cfg.players_font_margin
         data = [
             (WIDTH / 2 + self.ui_width, self.ui_width + margin, 'bottom', 0),
             (WIDTH / 2 - self.ui_width, HEIGHT - self.ui_width - margin, 'top', 0),
@@ -394,13 +385,13 @@ class GameView(View):
         for i in range(self.game.player_count):
             result.append(Text(f'{names[i]}', data[i][0], data[i][1],
                                anchor_x='center', anchor_y=data[i][2],
-                               font_size=size, rotation=data[i][3]))
+                               font_size=cfg.players_font_size, rotation=data[i][3]))
 
         return result
 
     def update_board(self):
         scale = self.zoom
-        margin = 5
+        margin = cfg.board_tile_margin
         gtile_h = math.ceil(TILE_HEIGHT * scale)
         middle_x = WIDTH // 2
         middle_y = HEIGHT // 2
@@ -489,43 +480,36 @@ class GameView(View):
         # Scroll to the proper location
         position = Vec2(self.board_anchor.center_x - WIDTH / 2,
                         self.board_anchor.center_y - HEIGHT / 2)
-        self.board_camera.move_to(position, self.camera_speed)
+        self.board_camera.move_to(position, cfg.camera_speed)
 
     def show_help_screen(self):
         # todo add rules. or not
-        top_margin = 20
-        margin = 15
-        step = 50
         half = self.ui_width / 2
-        levels = [HEIGHT - self.ui_width - top_margin - i * step for i in range(15)]
-        color = arcade.color.BLACK
-        font = "Courier New"
-        pad = 10
+        levels = [HEIGHT - self.ui_width - cfg.help_top_margin - i * cfg.help_step for i in range(30)]
 
         arcade.draw_lrtb_rectangle_filled(half, WIDTH - half, HEIGHT - half, half,
-                                          color=arcade.color.ASH_GREY + (230,))
+                                          color=cfg.help_bg_color)
         arcade.draw_lrtb_rectangle_outline(half, WIDTH - half, HEIGHT - half, half,
-                                           color=color, border_width=3)
+                                           color=cfg.help_font_color, border_width=cfg.help_border_width)
         arcade.draw_text('HELP', WIDTH // 2, levels[0], anchor_x='center',
-                         font_size=50, color=color, font_name=font, bold=True)
-        for i, line in zip(range(2, 8),
-                           (
-                                   f'{"Esc":<{pad}}quit',
-                                   f'{"arrows":<{pad}}move camera',
-                                   f'{"num +":<{pad}}zoom in',
-                                   f'{"num -":<{pad}}zoom out',
-                                   f'{"Home":<{pad}}reset camera',
-                                   f'{"F1":<{pad}}help',
-                           )):
-            arcade.draw_text(line, self.ui_width + margin, levels[i], font_name=font,
-                             anchor_x='left', font_size=30, color=color)
+                         font_size=cfg.help_title_font_size, color=cfg.help_font_color,
+                         font_name=cfg.help_font, bold=True)
+        for i, line in enumerate((
+                f'{"Esc":<{cfg.help_pad}}quit',
+                f'{"arrows":<{cfg.help_pad}}move camera',
+                f'{"num +":<{cfg.help_pad}}zoom in',
+                f'{"num -":<{cfg.help_pad}}zoom out',
+                f'{"Home":<{cfg.help_pad}}reset camera',
+                f'{"F1":<{cfg.help_pad}}help',
+        )):
+            arcade.draw_text(line, self.ui_width + cfg.help_margin, levels[i + 2], font_name=cfg.help_font,
+                             anchor_x='left', font_size=cfg.help_font_size, color=cfg.help_font_color)
 
     def draw_help_tip(self):
-        margin = 7
         arcade.draw_text(f'F1 - Help',
-                         self.ui_width + margin, HEIGHT - self.ui_width - margin,
+                         self.ui_width + cfg.help_tip_margin, HEIGHT - self.ui_width - cfg.help_tip_margin,
                          anchor_x='left', anchor_y='top',
-                         font_size=16, color=arcade.color.RED)
+                         font_size=cfg.help_tip_font_size, color=cfg.help_tip_color)
 
 
 class Dominoes(Window):

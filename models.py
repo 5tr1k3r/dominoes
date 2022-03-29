@@ -88,7 +88,7 @@ class Player:
         return not self.hand
 
     def is_a_goat(self) -> bool:
-        return self.score >= 101
+        return self.score >= cfg.goat_score
 
     def choose_tile(self, suitable_tiles: List[Tile]) -> Tile:
         # todo decide if need to allow the blocking move for a double
