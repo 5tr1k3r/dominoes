@@ -1,0 +1,4 @@
+arcade~=2.6.11
+toml~=0.10.2
+pyglet~=2.0.dev13
+Pillow~=9.0.1
