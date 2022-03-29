@@ -225,6 +225,14 @@ class GameView(View):
         x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
         self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
 
+    def on_mouse_scroll(self, x: int, y: int, scroll_x: int, scroll_y: int):
+        if scroll_y == 1.0:
+            self.zoom += 0.04
+            self.update_board()
+        elif scroll_y == -1.0:
+            self.zoom -= 0.04
+            self.update_board()
+
     def draw_ui(self):
         colors = [arcade.color.DARK_SLATE_GRAY] * 4
         colors[self.game.current_player_id] = arcade.color.DARK_GREEN
