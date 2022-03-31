@@ -77,6 +77,9 @@ table_outline_color = arcade.color.BLACK
 help_font_color = arcade.color.BLACK
 help_bg_color = arcade.color.ASH_GREY + (230,)
 help_tip_color = arcade.color.RED
+lane_marker_outline_color = arcade.color.GREEN
+lane_marker_color = arcade.color.GREEN + (50,)
+lane_marker_hovered_color = arcade.color.GREEN + (150,)
 
 # =============================================== MISC ===============================================
 separator_line_length = cc.get('separator_line_length', 40)

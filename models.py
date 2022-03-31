@@ -1,7 +1,7 @@
 import logging
 import random
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import combinations_with_replacement, cycle
 from threading import Thread, Event
 from typing import Optional, List
@@ -52,7 +52,7 @@ class Tile:
 
 @dataclass
 class Path:
-    index: int = field(repr=False)
+    index: int
     value: int
     depth: int
 
@@ -90,7 +90,7 @@ class Player:
     def is_a_goat(self) -> bool:
         return self.score >= cfg.goat_score
 
-    def choose_tile(self, suitable_tiles: List[Tile]) -> Tile:
+    def choose_tile(self, suitable_tiles: Optional[List[Tile]] = None) -> Tile:
         # todo decide if need to allow the blocking move for a double
         self.chosen_move = None
         while self.chosen_move is None:
@@ -116,7 +116,7 @@ class AI(Player):
     def __init__(self, name: str, difficulty: int):
         super().__init__(name=f'AI {name}', is_bot=True, bot_difficulty=difficulty)
 
-    def choose_tile(self, suitable_tiles: List[Tile]) -> Tile:
+    def choose_tile(self, suitable_tiles: Optional[List[Tile]] = None) -> Tile:
         # easy difficulty: pick a random suitable tile
         if self.bot_difficulty == 0:
             return random.choice(suitable_tiles)
@@ -148,49 +148,6 @@ class Board:
         logger.debug(f'Lanes: {self.lanes}')
         logger.debug(f'Open paths: {self.paths}')
 
-    def process_new_tile(self, tile: Tile, player: Player):
-        # we already know that the tile is suitable for the board
-
-        # filtering out paths that are not suitable for the tile
-        paths = [path for path in self.paths if tile.x == path.value or tile.y == path.value]
-
-        # get the amount of unique values we can connect with and allow player
-        # to choose which way to connect a tile if there are two options available
-        unique_values_count = len(set(x.value for x in paths))
-        if unique_values_count == 2:
-            if player.is_bot:
-                chosen_value = random.choice([tile.x, tile.y])
-            else:
-                valid_input = False
-                chosen_value = None
-                while not valid_input:
-                    try:
-                        chosen_value = int(input('What value do you want to connect with? '))
-                    except ValueError:
-                        logger.info('invalid input')
-                        continue
-
-                    if chosen_value not in [tile.x, tile.y]:
-                        logger.info(f'Tile {tile} does not have value {chosen_value}')
-                    else:
-                        valid_input = True
-
-            paths = [path for path in self.paths if chosen_value == path.value]
-
-        # sorting paths by depth so it prioritizes lowest depth first
-        paths.sort(key=lambda x: x.depth)
-
-        # using the first suitable path
-        chosen_path_index = paths[0].index
-        chosen_path = self.paths[chosen_path_index]
-        if tile.x == chosen_path.value:
-            chosen_path.value = tile.y
-        else:
-            chosen_path.value = tile.x
-        chosen_path.depth += 1
-
-        self.lanes[chosen_path_index].append(tile)
-
 
 class Game(Thread):
     def __init__(self, players: List[Player]):
@@ -206,7 +163,9 @@ class Game(Thread):
         self.board: Optional[Board] = None
         self.started = False
         self.is_done = False
+        self.choosing_lane = False
         self.current_player_id: Optional[int] = None
+        self.chosen_path = None
 
         if self.player_count < 2:
             raise RuntimeError('not enough players, need at least 2')
@@ -248,6 +207,8 @@ class Game(Thread):
         self.show_players_hands()
 
         self.is_done = False
+        self.choosing_lane = False
+        self.chosen_path = None
 
     def make_move(self, player: Player):
         suitable_tiles = self.get_suitable_tiles(player)
@@ -269,7 +230,7 @@ class Game(Thread):
         logger.debug(move)
 
         tile = player.take_tile_out_of_hand(move)
-        self.board.process_new_tile(tile, player)
+        self.process_new_tile(tile, player)
 
         is_ui_requires_update.set()
 
@@ -383,6 +344,47 @@ class Game(Thread):
     def wait_for_game_start(self):
         while not self.started:
             time.sleep(0.01)
+
+    def process_new_tile(self, tile: Tile, player: Player):
+        # we already know that the tile is suitable for the board
+
+        # filtering out paths that are not suitable for the tile
+        paths = [path for path in self.board.paths if tile.x == path.value or tile.y == path.value]
+
+        # get the amount of unique values we can connect with and allow player
+        # to choose which way to connect a tile if there are two options available
+        unique_values_count = len(set(x.value for x in paths))
+        if unique_values_count == 2:
+            if player.is_bot:
+                chosen_value = random.choice([tile.x, tile.y])
+            else:
+                self.choosing_lane = True
+
+                self.chosen_path = None
+                while self.chosen_path is None:
+                    time.sleep(0.01)
+
+                # noinspection PyUnresolvedReferences
+                chosen_value = self.chosen_path.value
+                self.chosen_path = None
+
+                self.choosing_lane = False
+
+            paths = [path for path in self.board.paths if chosen_value == path.value]
+
+        # sorting paths by depth so it prioritizes lowest depth first
+        paths.sort(key=lambda x: x.depth)
+
+        # using the first suitable path
+        chosen_path_index = paths[0].index
+        chosen_path = self.board.paths[chosen_path_index]
+        if tile.x == chosen_path.value:
+            chosen_path.value = tile.y
+        else:
+            chosen_path.value = tile.x
+        chosen_path.depth += 1
+
+        self.board.lanes[chosen_path_index].append(tile)
 
 
 @timeit

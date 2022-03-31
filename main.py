@@ -1,6 +1,7 @@
 import math
+from dataclasses import dataclass, field
 from itertools import combinations_with_replacement
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
 
 import arcade
 from arcade import Window, View, Text
@@ -8,7 +9,30 @@ from pyglet.math import Vec2
 
 import config as cfg
 from config import WIDTH, HEIGHT, TILE_WIDTH, TILE_HEIGHT, TITLE
-from models import Game, Player, is_ui_requires_update, Tile
+from models import Game, Player, is_ui_requires_update, Tile, Path
+
+
+@dataclass
+class LaneData:
+    angle: float
+    start_x: float
+    start_y: float
+    step_x: float
+    step_y: float
+    centers_x: List[float] = field(init=False)
+    centers_y: List[float] = field(init=False)
+
+    def __post_init__(self):
+        current_x = self.start_x
+        current_y = self.start_y
+        self.centers_x = []
+        self.centers_y = []
+
+        for _ in range(28):
+            self.centers_x.append(current_x)
+            self.centers_y.append(current_y)
+            current_x += self.step_x
+            current_y += self.step_y
 
 
 class MenuView(View):
@@ -128,6 +152,14 @@ class GTile(arcade.Sprite):
         self.is_face_up = True
 
 
+class LaneMarker(arcade.Sprite):
+    def __init__(self):
+        super().__init__(hit_box_algorithm='None')
+        self.width = TILE_HEIGHT
+        self.height = TILE_WIDTH
+        self.is_hovered = False
+
+
 class GameView(View):
     def __init__(self):
         super().__init__()
@@ -143,6 +175,7 @@ class GameView(View):
         self.board_tiles = arcade.SpriteList()
         self.hand_tiles = arcade.SpriteList()
         self.suitable_gtiles = arcade.SpriteList()
+        self.lane_markers = arcade.SpriteList()
         self.players_names = self.render_players_names()
 
         self.board_anchor = arcade.Sprite(center_x=WIDTH // 2, center_y=HEIGHT // 2)
@@ -152,6 +185,8 @@ class GameView(View):
 
         self.is_help_screen = False
         self.holding_right_click = False
+        self.last_played_tile: Optional[Tile] = None
+        self.active_paths: List[Path] = []
 
     def on_show(self):
         arcade.set_background_color(cfg.game_bg_color)
@@ -214,12 +249,25 @@ class GameView(View):
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         if button == 1:
             suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
-            if not suitable_gtiles:
-                return
+            if suitable_gtiles:
+                # noinspection PyUnresolvedReferences
+                x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
+                self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
+                self.last_played_tile = Tile(x, y)
 
-            # noinspection PyUnresolvedReferences
-            x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
-            self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
+            if self.game.choosing_lane:
+                x = x - (WIDTH // 2 - self.board_anchor.center_x)
+                y = y - (HEIGHT // 2 - self.board_anchor.center_y)
+                markers = arcade.get_sprites_at_point((x, y), self.lane_markers)
+                if markers:
+                    lm = markers[0]
+                    for p in self.active_paths:
+                        if p.index == self.lane_markers.index(lm):
+                            self.game.chosen_path = p
+                            break
+
+                    self.active_paths = []
+
         elif button == 4:
             self.holding_right_click = True
 
@@ -231,6 +279,16 @@ class GameView(View):
         if self.holding_right_click:
             self.board_anchor.center_x += dx
             self.board_anchor.center_y += dy
+
+        if self.game.choosing_lane:
+            x = x - (WIDTH // 2 - self.board_anchor.center_x)
+            y = y - (HEIGHT // 2 - self.board_anchor.center_y)
+            markers = arcade.get_sprites_at_point((x, y), self.lane_markers)
+            for marker in markers:
+                marker.is_hovered = True
+            for marker in self.lane_markers:
+                if marker not in markers:
+                    marker.is_hovered = False
 
     def on_mouse_scroll(self, x: int, y: int, scroll_x: int, scroll_y: int):
         if scroll_y == 1.0:
@@ -264,6 +322,19 @@ class GameView(View):
 
     def draw_board(self):
         self.board_tiles.draw()
+        for p in self.active_paths:
+            lm: LaneMarker = self.lane_markers[p.index]
+            arcade.draw_rectangle_outline(lm.center_x, lm.center_y,
+                                          lm.width * lm.scale, lm.height * lm.scale,
+                                          cfg.lane_marker_outline_color, tilt_angle=lm.angle)
+            if lm.is_hovered:
+                arcade.draw_rectangle_filled(lm.center_x, lm.center_y,
+                                             lm.width * lm.scale, lm.height * lm.scale,
+                                             cfg.lane_marker_hovered_color, tilt_angle=lm.angle)
+            else:
+                arcade.draw_rectangle_filled(lm.center_x, lm.center_y,
+                                             lm.width * lm.scale, lm.height * lm.scale,
+                                             cfg.lane_marker_color, tilt_angle=lm.angle)
 
     def on_update(self, delta_time: float):
         self.update_camera()
@@ -273,6 +344,12 @@ class GameView(View):
             self.update_players_names()
 
             is_ui_requires_update.clear()
+
+        if self.game.choosing_lane:
+            self.get_active_paths()
+        else:
+            # ehh needed to fix a weird bug:(
+            self.active_paths = []
 
     def update_players_hands(self):
         available_space = WIDTH - self.ui_width
@@ -385,19 +462,31 @@ class GameView(View):
         scale = self.zoom
         margin = cfg.board_tile_margin
         gtile_h = math.ceil(TILE_HEIGHT * scale)
-        middle_x = WIDTH // 2
-        middle_y = HEIGHT // 2
+        gtile_w = math.ceil(TILE_WIDTH * scale)
+        middle_x = WIDTH / 2
+        middle_y = HEIGHT / 2
+        step = gtile_h + margin
+        bottom_top_start_y = (gtile_w + gtile_h) / 2 + margin
 
-        starting_gtile = None
+        # 0 - bottom, 1 - top, 2 - left, 3 - right
+        lane_data = [
+            LaneData(angle=-90.0, start_x=middle_x, start_y=middle_y - bottom_top_start_y, step_x=0, step_y=-step),
+            LaneData(angle=-90.0, start_x=middle_x, start_y=middle_y + bottom_top_start_y, step_x=0, step_y=step),
+            LaneData(angle=0, start_x=middle_x - step, start_y=middle_y, step_x=-step, step_y=0),
+            LaneData(angle=0, start_x=middle_x + step, start_y=middle_y, step_x=step, step_y=0)
+        ]
+
         ends = None
 
         self.board_tiles.clear()
+        self.lane_markers.clear()
         if self.game.board.starting_tile:
             tile = self.game.board.starting_tile
-            starting_gtile = self.all_tiles[int(f'{tile.x}{tile.y}')]
+            starting_gtile = self.get_gtile(tile)
 
             starting_gtile.turn_face_up()
             starting_gtile.scale = scale
+            starting_gtile.angle = 0
             starting_gtile.center_x = middle_x
             starting_gtile.center_y = middle_y
 
@@ -409,43 +498,15 @@ class GameView(View):
             if not lane:
                 continue
 
-            anchors = [
-                starting_gtile.bottom - margin,
-                starting_gtile.top + margin,
-                starting_gtile.left - margin,
-                starting_gtile.right + margin,
-            ]
-
             # 0 - bottom, 1 - top, 2 - left, 3 - right
-            for tile in lane:
-                gtile = self.all_tiles[int(f'{tile.x}{tile.y}')]
+            for j, tile in enumerate(lane):
+                gtile = self.get_gtile(tile)
 
                 gtile.turn_face_up()
                 gtile.scale = scale
-
-                if i == 0:
-                    gtile.angle = -90.0
-                    gtile.top = anchors[i]
-                    gtile.center_x = middle_x
-                    anchors[i] -= gtile_h + margin
-
-                elif i == 1:
-                    gtile.angle = -90.0
-                    gtile.bottom = anchors[i]
-                    gtile.center_x = middle_x
-                    anchors[i] += gtile_h + margin
-
-                elif i == 2:
-                    gtile.angle = 0
-                    gtile.right = anchors[i]
-                    gtile.center_y = middle_y
-                    anchors[i] -= gtile_h + margin
-
-                elif i == 3:
-                    gtile.angle = 0
-                    gtile.left = anchors[i]
-                    gtile.center_y = middle_y
-                    anchors[i] += gtile_h + margin
+                gtile.angle = lane_data[i].angle
+                gtile.center_x = lane_data[i].centers_x[j]
+                gtile.center_y = lane_data[i].centers_y[j]
 
                 if i in (0, 3):
                     if tile.x != ends[i]:
@@ -461,6 +522,15 @@ class GameView(View):
                         ends[i] = tile.x
 
                 self.board_tiles.append(gtile)
+
+        for i, lane in enumerate(self.game.board.lanes):
+            j = len(lane)
+            lane_marker = LaneMarker()
+            lane_marker.scale = scale
+            lane_marker.angle = lane_data[i].angle
+            lane_marker.center_x = lane_data[i].centers_x[j]
+            lane_marker.center_y = lane_data[i].centers_y[j]
+            self.lane_markers.append(lane_marker)
 
     def update_players_names(self):
         for text, player in zip(self.players_names, self.game.players):
@@ -503,6 +573,29 @@ class GameView(View):
                          self.ui_width + cfg.help_tip_margin, HEIGHT - self.ui_width - cfg.help_tip_margin,
                          anchor_x='left', anchor_y='top',
                          font_size=cfg.help_tip_font_size, color=cfg.help_tip_color)
+
+    def get_gtile(self, tile: Tile) -> GTile:
+        return self.all_tiles[int(f'{tile.x}{tile.y}')]
+
+    def get_active_paths(self):
+        # todo make this not run 9000 times
+        tile = self.last_played_tile
+
+        # filtering out paths that are not suitable for the tile
+        paths = [path for path in self.game.board.paths if tile.x == path.value or tile.y == path.value]
+
+        # sorting paths by depth so it prioritizes lowest depth first
+        paths.sort(key=lambda x: x.depth)
+
+        for p in paths:
+            is_value_present = False
+            for p2 in self.active_paths:
+                if p.value == p2.value:
+                    is_value_present = True
+                    break
+
+            if not is_value_present:
+                self.active_paths.append(p)
 
 
 class Dominoes(Window):
