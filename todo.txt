@@ -1,0 +1,14 @@
+- not autograb from stock
+- add display of current points
+- add display of round over screen
+- add the option to toggle suitable tiles highlight
+- add hotkeys for show all tiles and possibly for the suitable tiles highlight
+- maybe option/hotkey to restart
+- not place starting tile automatically
+- support weight and height not being the same
+- make proper help in menu
+- add comments
+
+- add sockets multiplayer
+- autoresize board after move so it fits the screen
+- add possibility of blocking move with the double
