@@ -6,6 +6,8 @@ from itertools import combinations_with_replacement, cycle
 from threading import Thread, Event
 from typing import Optional, List
 
+import arcade
+
 import config as cfg
 from config import logger
 from utils import timeit
@@ -167,6 +169,8 @@ class Game(Thread):
         self.current_player_id: Optional[int] = None
         self.chosen_path = None
         self.round_number = 0
+        self.placement_sounds = [arcade.load_sound(f'assets/sounds/{filename}') for filename in
+                                 ['placement1.wav', 'placement2.wav']]
 
         if self.player_count < 2:
             raise RuntimeError('not enough players, need at least 2')
@@ -383,6 +387,7 @@ class Game(Thread):
         chosen_path.depth += 1
 
         self.board.lanes[chosen_path_index].append(tile)
+        arcade.play_sound(random.choice(self.placement_sounds))
 
 
 @timeit
