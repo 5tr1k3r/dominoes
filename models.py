@@ -166,6 +166,7 @@ class Game(Thread):
         self.choosing_lane = False
         self.current_player_id: Optional[int] = None
         self.chosen_path = None
+        self.round_number = 0
 
         if self.player_count < 2:
             raise RuntimeError('not enough players, need at least 2')
@@ -175,9 +176,8 @@ class Game(Thread):
     def run(self) -> List[str]:
         self.wait_for_game_start()
 
-        round_number = 1
         while not self.is_game_over():
-            self.start_round(round_number)
+            self.start_round()
 
             for i, player in enumerate(cycle(self.players)):
                 logger.debug('-' * cfg.separator_line_length)
@@ -189,16 +189,14 @@ class Game(Thread):
 
                 self.board.show()
                 self.make_move(player)
-
-            round_number += 1
-
         return self.get_goats()
 
-    def start_round(self, n: int):
+    def start_round(self):
         self.stock = [Tile(x, y) for x, y in combinations_with_replacement(range(7), 2)]
         self.board = Board()
+        self.round_number += 1
 
-        round_line = f' ROUND {n} '.center(cfg.separator_line_length, '=')
+        round_line = f' ROUND {self.round_number} '.center(cfg.separator_line_length, '=')
         logger.debug(round_line)
 
         self.refresh_players()
