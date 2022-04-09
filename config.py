@@ -94,3 +94,4 @@ lane_marker_hovered_color = arcade.color.GREEN + (150,)
 
 # =============================================== MISC ===============================================
 separator_line_length = cc.get('separator_line_length', 40)
+is_sound_on = cc.get('is_sound_on', True)

@@ -273,7 +273,7 @@ class GameView(View):
                     self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
                     self.last_played_tile = Tile(x, y)
 
-                    arcade.play_sound(random.choice(self.placement_sounds))
+                    self.play_tile_sound()
 
         elif button == 4:
             self.holding_right_click = True
@@ -609,6 +609,10 @@ class GameView(View):
 
             if not is_value_present:
                 self.active_paths.append(p)
+
+    def play_tile_sound(self):
+        if cfg.is_sound_on:
+            arcade.play_sound(random.choice(self.placement_sounds))
 
 
 class Dominoes(Window):
