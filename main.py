@@ -201,6 +201,7 @@ class GameView(View):
         self.draw_players_tables()
         self.draw_stock_tile_count()
         self.draw_help_tip()
+        self.draw_round_text()
         self.draw_players_names()
         self.draw_hands()
 
@@ -570,9 +571,15 @@ class GameView(View):
 
     def draw_help_tip(self):
         arcade.draw_text(f'F1 - Help',
-                         self.ui_width + cfg.help_tip_margin, HEIGHT - self.ui_width - cfg.help_tip_margin,
+                         self.ui_width + cfg.text_left_margin, HEIGHT - self.ui_width - cfg.help_tip_top_margin,
                          anchor_x='left', anchor_y='top',
                          font_size=cfg.help_tip_font_size, color=cfg.help_tip_color)
+
+    def draw_round_text(self):
+        arcade.draw_text(f'Round {self.game.round_number}',
+                         self.ui_width + cfg.text_left_margin, HEIGHT - self.ui_width - cfg.round_text_top_margin,
+                         anchor_x='left', anchor_y='top',
+                         font_size=cfg.round_text_font_size, color=cfg.round_text_color)
 
     def get_gtile(self, tile: Tile) -> GTile:
         return self.all_tiles[int(f'{tile.x}{tile.y}')]

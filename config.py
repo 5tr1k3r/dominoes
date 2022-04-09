@@ -58,8 +58,20 @@ help_font = cc.get('help_font', "Courier New")
 help_title_font_size = cc.get('help_title_font_size', 50)
 help_font_size = cc.get('help_font_size', 30)
 help_border_width = cc.get('help_border_width', 3)
-help_tip_margin = cc.get('help_tip_margin', 7)
+
+# ========================================== GAMEVIEW TEXT ===========================================
+# margin
+text_left_margin = 7
+
+# help tip
+help_tip_top_margin = cc.get('help_tip_top_margin', 7)
 help_tip_font_size = cc.get('help_tip_font_size', 16)
+help_tip_color = arcade.color.RED
+
+# current round text
+round_text_top_margin = cc.get('round_text_top_margin', 30)
+round_text_font_size = cc.get('round_text_font_size', 12)
+round_text_color = arcade.color.WHITE
 
 # ============================================== COLORS ==============================================
 # not customizable with custom_config.toml, change it here instead
@@ -76,7 +88,6 @@ active_table_color = arcade.color.DARK_GREEN
 table_outline_color = arcade.color.BLACK
 help_font_color = arcade.color.BLACK
 help_bg_color = arcade.color.ASH_GREY + (230,)
-help_tip_color = arcade.color.RED
 lane_marker_outline_color = arcade.color.GREEN
 lane_marker_color = arcade.color.GREEN + (50,)
 lane_marker_hovered_color = arcade.color.GREEN + (150,)
