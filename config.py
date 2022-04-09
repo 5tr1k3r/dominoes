@@ -61,7 +61,7 @@ help_border_width = cc.get('help_border_width', 3)
 
 # ========================================== GAMEVIEW TEXT ===========================================
 # margin
-text_left_margin = 7
+text_left_margin = cc.get('text_left_margin', 7)
 
 # help tip
 help_tip_top_margin = cc.get('help_tip_top_margin', 7)
