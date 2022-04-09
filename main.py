@@ -1,4 +1,5 @@
 import math
+import random
 from dataclasses import dataclass, field
 from itertools import combinations_with_replacement
 from typing import Tuple, List, Dict, Optional
@@ -188,6 +189,9 @@ class GameView(View):
         self.last_played_tile: Optional[Tile] = None
         self.active_paths: List[Path] = []
 
+        self.placement_sounds = [arcade.load_sound(f'assets/sounds/{filename}') for filename in
+                                 ['placement1.wav', 'placement2.wav']]
+
     def on_show(self):
         arcade.set_background_color(cfg.game_bg_color)
 
@@ -249,13 +253,6 @@ class GameView(View):
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         if button == 1:
-            suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
-            if suitable_gtiles:
-                # noinspection PyUnresolvedReferences
-                x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
-                self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
-                self.last_played_tile = Tile(x, y)
-
             if self.game.choosing_lane:
                 x = x - (WIDTH // 2 - self.board_anchor.center_x)
                 y = y - (HEIGHT // 2 - self.board_anchor.center_y)
@@ -268,6 +265,15 @@ class GameView(View):
                             break
 
                     self.active_paths = []
+            else:
+                suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
+                if suitable_gtiles:
+                    # noinspection PyUnresolvedReferences
+                    x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
+                    self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
+                    self.last_played_tile = Tile(x, y)
+
+                    self.play_tile_sound()
 
         elif button == 4:
             self.holding_right_click = True
@@ -603,6 +609,10 @@ class GameView(View):
 
             if not is_value_present:
                 self.active_paths.append(p)
+
+    def play_tile_sound(self):
+        if cfg.is_sound_on:
+            arcade.play_sound(random.choice(self.placement_sounds))
 
 
 class Dominoes(Window):
