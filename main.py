@@ -1,4 +1,5 @@
 import math
+import random
 from dataclasses import dataclass, field
 from itertools import combinations_with_replacement
 from typing import Tuple, List, Dict, Optional
@@ -188,6 +189,9 @@ class GameView(View):
         self.last_played_tile: Optional[Tile] = None
         self.active_paths: List[Path] = []
 
+        self.placement_sounds = [arcade.load_sound(f'assets/sounds/{filename}') for filename in
+                                 ['placement1.wav', 'placement2.wav']]
+
     def on_show(self):
         arcade.set_background_color(cfg.game_bg_color)
 
@@ -255,6 +259,8 @@ class GameView(View):
                 x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
                 self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
                 self.last_played_tile = Tile(x, y)
+
+                arcade.play_sound(random.choice(self.placement_sounds))
 
             if self.game.choosing_lane:
                 x = x - (WIDTH // 2 - self.board_anchor.center_x)
