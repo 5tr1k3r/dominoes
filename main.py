@@ -605,7 +605,7 @@ class Dominoes(Window):
         self.game = Game([
             Player('John'),
             Player('Tom'),
-            Player('Patrick'),
+            Player('Bahah'),
             Player('Tamara'),
             # AI('easy', difficulty=1)
         ])
