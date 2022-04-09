@@ -253,15 +253,6 @@ class GameView(View):
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         if button == 1:
-            suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
-            if suitable_gtiles:
-                # noinspection PyUnresolvedReferences
-                x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
-                self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
-                self.last_played_tile = Tile(x, y)
-
-                arcade.play_sound(random.choice(self.placement_sounds))
-
             if self.game.choosing_lane:
                 x = x - (WIDTH // 2 - self.board_anchor.center_x)
                 y = y - (HEIGHT // 2 - self.board_anchor.center_y)
@@ -274,6 +265,15 @@ class GameView(View):
                             break
 
                     self.active_paths = []
+            else:
+                suitable_gtiles = arcade.get_sprites_at_point((x, y), self.suitable_gtiles)
+                if suitable_gtiles:
+                    # noinspection PyUnresolvedReferences
+                    x, y = suitable_gtiles[0].x, suitable_gtiles[0].y
+                    self.game.players[self.game.current_player_id].chosen_move = Tile(x, y)
+                    self.last_played_tile = Tile(x, y)
+
+                    arcade.play_sound(random.choice(self.placement_sounds))
 
         elif button == 4:
             self.holding_right_click = True
